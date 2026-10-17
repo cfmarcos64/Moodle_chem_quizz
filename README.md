@@ -107,8 +107,10 @@ This project is licensed under the CC BY-NC-SA 4.0 Licence. See the [LICENSE](LI
 
 ---
 
-## 👤 Author & Contact
-* **Created by**: Carlos Fernández Marcos
-* **Institution**: Universidad de Extremadura (University of Extremadura, Spain)
-* **GitHub**: [@cfmarcos64](https://github.com/cfmarcos64)
-* **Email**: cfmarcos@unex.es
+
+## 👥 Authors & Contributors
+
+* **Carlos Fernández Marcos** - *Initial development & Chemistry logic* ([@cfmarcos64](https://github.com/cfmarcos64)) Email: cfmarcos64@gmail.com
+* **Sonia Martínez-Caballero** - *Testing & feedback* ([@msoniam28_github](https://github.com/msoniam28))
+
+Last updated: October 2026
