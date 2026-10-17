@@ -6,9 +6,9 @@ Created on Thu Oct 15 20:51:39 2026
 """
 
 """
-Módulo de Determinación de Grupo Funcional para la Suite de Moodle.
-Permite entrada individual y masiva (Excel), renderizado de moléculas con RDKit,
-pestañas separadas, diseño en dos columnas, limpieza automática de campos e imágenes en el listado.
+Functional Group Determination Module for the Moodle Chemistry Suite.
+Allows individual entry with automatic detection and manual editing (even if detection fails),
+as well as bulk upload with detailed error reporting and cause tracking.
 """
 
 import streamlit as st
@@ -18,7 +18,7 @@ import requests
 import io
 import base64
 
-# --- Verificación de Dependencias (RDKit) ---
+# --- Dependency Verification (RDKit) ---
 try:
     from rdkit import Chem
     from rdkit.Chem import Draw
@@ -26,56 +26,215 @@ try:
 except ImportError:
     RDKIT_AVAILABLE = False
 
-# Textos bilingües para la interfaz
+# Master dictionary updated with IUPAC priorities and Alkane at the end
+FUNCTIONAL_GROUPS_MASTER_ULTIMATE = {
+    'Ácido carboxílico': {
+        'smarts': '[$([CX3](=O)[OX2H1]),$([CX3](=O)[O-])]', 
+        'priority': 1,
+        'en': 'Carboxylic acid'
+    },
+    'Peroxiácido (Ácido peroxicarboxílico)': {
+        'smarts': '[CX3](=O)[OX2][OX2H]', 
+        'priority': 2,
+        'en': 'Peroxyacid (Peroxycarboxylic acid)'
+    },
+    'Anhídrido de ácido': {
+        'smarts': '[CX3](=O)[OX2][CX3](=O)', 
+        'priority': 3,
+        'en': 'Acid anhydride'
+    },
+    'Éster': {
+        'smarts': '[#6][CX3](=O)[OX2][#6]', 
+        'priority': 4,
+        'en': 'Ester'
+    },
+    'Haluro de ácido (Acilo)': {
+        'smarts': '[CX3](=O)[F,Cl,Br,I]', 
+        'priority': 5,
+        'en': 'Acyl halide'
+    },
+    'Amida': {
+        'smarts': '[CX3](=O)[NX3]', 
+        'priority': 6,
+        'en': 'Amide'
+    },
+    'Nitrilo': {
+        'smarts': '[CX2,CX3]#[NX1]', 
+        'priority': 7,
+        'en': 'Nitrile'
+    },
+    'Aldehído': {
+        'smarts': '[CX3H1](=O)[#6]', 
+        'priority': 8,
+        'en': 'Aldehyde'
+    },
+    'Cetona': {
+        'smarts': '[#6][CX3](=O)[#6]', 
+        'priority': 9,
+        'en': 'Ketone'
+    },
+    'Imina / Base de Schiff': {
+        'smarts': '[CX3](=[NX2][#6])[#6,H]', 
+        'priority': 10,
+        'en': 'Imine / Schiff base'
+    },
+    'Hemiacetal / Hemiketal': {
+        'smarts': '[CX4]([OX2H])([OX2][#6])', 
+        'priority': 11,
+        'en': 'Hemiacetal / Hemiketal'
+    },
+    'Alcohol': {
+        'smarts': '[#6][OX2H]', 
+        'priority': 12,
+        'en': 'Alcohol'
+    },
+    'Amina': {
+        'smarts': '[NX3;H2,H1,H0;!$(NC=O)]', 
+        'priority': 13,
+        'en': 'Amine'
+    },
+    'Acetal / Ketal': {
+        'smarts': '[CX4]([OX2][#6])([OX2][#6])', 
+        'priority': 14,
+        'en': 'Acetal / Ketal'
+    },
+    'Epóxido (Oxirano)': {
+        'smarts': '[CX4]1[OX2][CX4]1', 
+        'priority': 15,
+        'en': 'Epoxide (Oxirane)'
+    },
+    'Peróxido': {
+        'smarts': '[OX2][OX2]', 
+        'priority': 16,
+        'en': 'Peroxide'
+    },
+    'Éter': {
+        'smarts': '[#6][OX2][#6]', 
+        'priority': 17,
+        'en': 'Ether'
+    },
+    'Grupo Nitro': {
+        'smarts': '[$([NX3](=O)=O),$([NX3+]([O-])=O)]', 
+        'priority': 18,
+        'en': 'Nitro group'
+    },
+    'Haluro de alquilo': {
+        'smarts': '[CX4][F,Cl,Br,I]', 
+        'priority': 19,
+        'en': 'Alkyl halide'
+    },
+    'Alquino (Triple enlace)': {
+        'smarts': '[CX2]#[CX2]', 
+        'priority': 20,
+        'en': 'Alkyne (Triple bond)'
+    },
+    'Alqueno (Doble enlace)': {
+        'smarts': '[CX3]=[CX3]', 
+        'priority': 21,
+        'en': 'Alkene (Double bond)'
+    },
+    'Anillo aromático (Bencénico)': {
+        'smarts': 'c1ccccc1', 
+        'priority': 22,
+        'en': 'Aromatic ring (Benzene)'
+    },
+    'Alcano': {
+        'smarts': '[CX4]', 
+        'priority': 23,
+        'en': 'Alkane'
+    }
+}
+
+# Bilingual interface texts
 TEXTS_DG = {
     "es": {
-        "title": "Determinación de Grupo Funcional 🧪",
-        "desc": "Genera preguntas Moodle de respuesta corta sobre el grupo funcional principal de una molécula.",
+        "title": "Determinación Automática de Grupo Funcional 🧪",
+        "desc": "Introduce una molécula y RDKit detectará automáticamente su grupo funcional (incluyendo alcanos). Si lo deseas, puedes modificarlo antes de generar la pregunta.",
         "tab_individual": "Entrada Individual",
         "tab_bulk": "Carga Masiva",
         "section_export": "Listado y Exportación de Preguntas",
-        "compound_name": "Nombre de la molécula (en inglés, ej: acetic acid)",
-        "functional_group": "Nombre del grupo funcional principal (respuesta esperada)",
-        "add_question": "Validar y Añadir a la Lista",
+        "compound_name": "Nombre de la molécula (en inglés, ej: hexane, acetic acid)",
+        "detect_btn": "Analizar y Detectar Grupo",
+        "add_question": "Añadir a la Lista de Preguntas",
+        "fg_label": "Grupo funcional (editable)",
         "bulk_uploader": "Sube un archivo Excel (.xlsx) o CSV",
-        "bulk_note": "El archivo debe contener las columnas: **'name'** y **'functional_group'**.",
+        "bulk_note": "El archivo puede contener la columna **'name'** y opcionalmente **'functional_group'**. Si está vacía, se detectará automáticamente.",
         "start_bulk": "Procesar Carga Masiva",
         "question_title": "Identificación de Grupo Funcional: {}",
         "question_text": "¿Cuál es el grupo funcional principal de esta molécula?",
         "export_xml": "Descargar XML Moodle (Respuesta Corta)",
         "clear_all": "Borrar Toda la Lista",
-        "error_rdkit": "RDKit no está disponible en este entorno para generar las imágenes moleculares.",
+        "error_rdkit": "RDKit no está disponible en este entorno para procesar las moléculas.",
         "error_smiles": "No se pudo encontrar un SMILES válido para el compuesto '{}' en NCI CIR.",
-        "success_added": "Pregunta añadida correctamente.",
+        "error_enter_name": "Por favor, introduce el nombre de la molécula.",
+        "error_fg_empty": "El grupo funcional no puede estar vacío.",
+        "error_col_name": "El archivo debe contener al menos una columna llamada 'name' o 'nombre'.",
+        "success_analyzed": "Molécula analizada: `{}`",
+        "spinner_analyzing": "Buscando estructura y analizando grupo funcional...",
+        "progress_batch": "Procesando lote y detectando grupos...",
+        "success_added": "Pregunta añadida correctamente con el grupo: **{}**.",
         "bulk_success": "Carga masiva completada: **{}** éxitos, **{}** fallos.",
-        "empty_list": "Aún no hay preguntas añadidas. Completa el formulario de la izquierda."
+        "bulk_errors_title": "Ver detalle de errores en la carga masiva",
+        "empty_list": "Aún no hay preguntas añadidas. Completa el formulario de la izquierda.",
+        "last_added": "Última molécula añadida",
+        "group_label": "Grupo",
+        "group_detected": "Grupo asignado"
     },
     "en": {
-        "title": "Functional Group Determination 🧪",
-        "desc": "Generate Moodle short-answer questions regarding the main functional group of a molecule.",
+        "title": "Automatic Functional Group Determination 🧪",
+        "desc": "Enter a molecule and RDKit will automatically detect its functional group (including alkanes). You can edit it before generating the question.",
         "tab_individual": "Individual Entry",
         "tab_bulk": "Bulk Upload",
         "section_export": "Questions List & Export",
-        "compound_name": "Molecule Name (in English, e.g., acetic acid)",
-        "functional_group": "Main Functional Group (expected answer)",
-        "add_question": "Validate and Add to List",
+        "compound_name": "Molecule Name (in English, e.g., hexane, acetic acid)",
+        "detect_btn": "Analyze and Detect Group",
+        "add_question": "Add to Questions List",
+        "fg_label": "Functional group (editable)",
         "bulk_uploader": "Upload Excel (.xlsx) or CSV file",
-        "bulk_note": "The file must contain columns: **'name'** and **'functional_group'**.",
+        "bulk_note": "The file can contain a **'name'** column and optionally **'functional_group'**. If empty, automatic detection will be applied.",
         "start_bulk": "Process Bulk Upload",
         "question_title": "Functional Group Identification: {}",
         "question_text": "What is the main functional group of this molecule?",
         "export_xml": "Download Moodle XML (Short Answer)",
         "clear_all": "Clear All List",
-        "error_rdkit": "RDKit is not available in this environment to generate molecular images.",
+        "error_rdkit": "RDKit is not available in this environment to process molecules.",
         "error_smiles": "Could not find a valid SMILES for compound '{}' via NCI CIR.",
-        "success_added": "Question successfully added.",
+        "error_enter_name": "Please enter a molecule name.",
+        "error_fg_empty": "The functional group cannot be empty.",
+        "error_col_name": "The file must contain at least a 'name' column.",
+        "success_analyzed": "Analyzed molecule: `{}`",
+        "spinner_analyzing": "Searching structure and analyzing functional group...",
+        "progress_batch": "Processing batch and detecting groups...",
+        "success_added": "Question successfully added with group: **{}**.",
         "bulk_success": "Bulk processing complete: **{}** successes, **{}** failures.",
-        "empty_list": "No questions added yet. Fill out the form on the left."
+        "bulk_errors_title": "View bulk upload error details",
+        "empty_list": "No questions added yet. Fill out the form on the left.",
+        "last_added": "Last added molecule",
+        "group_label": "Group",
+        "group_detected": "Assigned group"
     }
 }
 
+def detectar_grupo_funcional(mol, lang="es"):
+    """
+    Detects the main functional group using the master dictionary sorted by IUPAC priority.
+    If no specific group matches, defaults to Alkane.
+    """
+    if not mol:
+        return None
+
+    grupos_ordenados = sorted(FUNCTIONAL_GROUPS_MASTER_ULTIMATE.items(), key=lambda x: x[1]['priority'])
+
+    for nombre_es, data in grupos_ordenados:
+        patron = Chem.MolFromSmarts(data['smarts'])
+        if patron and mol.HasSubstructMatch(patron):
+            return data['en'] if lang == 'en' else nombre_es
+
+    # Fallback to Alkane
+    return 'Alkane' if lang == 'en' else 'Alcano'
+
 def name_to_smiles_simple(compound_name):
-    """Busca el SMILES de una molécula usando la API de NCI CIR."""
+    """Searches for a molecule's SMILES using the NCI CIR API."""
     try:
         encoded = requests.utils.quote(compound_name.strip())
         url = f"http://cactus.nci.nih.gov/chemical/structure/{encoded}/smiles"
@@ -86,31 +245,29 @@ def name_to_smiles_simple(compound_name):
                 if RDKIT_AVAILABLE:
                     mol = Chem.MolFromSmiles(smiles)
                     if mol:
-                        return Chem.MolToSmiles(mol, canonical=True)
-                return smiles
+                        return Chem.MolToSmiles(mol, canonical=True), mol
+                return smiles, None
     except Exception:
         pass
-    return None
+    return None, None
 
-def smiles_to_png_base64(smiles):
-    """Genera una imagen PNG en Base64 de la molécula usando RDKit de forma limpia."""
-    if not RDKIT_AVAILABLE:
+def smiles_to_png_base64(mol):
+    """Generates a Base64 PNG image of the molecule using clean RDKit rendering."""
+    if not RDKIT_AVAILABLE or not mol:
         return None
     try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol:
-            opts = Draw.MolDrawOptions()
-            opts.addAtomIndices = False
-            img = Draw.MolToImage(mol, size=(400, 350), drawOptions=opts)
-            buffered = io.BytesIO()
-            img.save(buffered, format="PNG")
-            return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        opts = Draw.MolDrawOptions()
+        opts.addAtomIndices = False
+        img = Draw.MolToImage(mol, size=(400, 350), drawOptions=opts)
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
     except Exception:
         pass
     return None
 
 def generate_short_answer_xml(questions_list, lang):
-    """Genera el XML para Moodle de tipo 'shortanswer' incluyendo imágenes integradas en Base64."""
+    """Generates Moodle XML for short-answer questions including base64-embedded images."""
     quiz = ET.Element("quiz")
     
     for item in questions_list:
@@ -120,12 +277,10 @@ def generate_short_answer_xml(questions_list, lang):
         
         question = ET.Element("question", type="shortanswer")
         
-        # Nombre de la pregunta
         q_name = ET.SubElement(question, "name")
         q_text_name = ET.SubElement(q_name, "text")
         q_text_name.text = TEXTS_DG[lang]["question_title"].format(name)
         
-        # Texto del enunciado con imagen embebida en base64
         q_text = ET.SubElement(question, "questiontext", format="html")
         q_text_content = ET.SubElement(q_text, "text")
         
@@ -133,7 +288,6 @@ def generate_short_answer_xml(questions_list, lang):
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="{name}" /></p>' if b64_img else ""
         q_text_content.text = f"<![CDATA[<p>{base_prompt}</p>{img_tag}]]>"
         
-        # Opciones de respuesta corta
         answer = ET.SubElement(question, "answer", fraction="100", format="moodle_auto_format")
         ans_text = ET.SubElement(answer, "text")
         ans_text.text = fg
@@ -148,7 +302,7 @@ def generate_short_answer_xml(questions_list, lang):
     return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
 
 def render_nueva_herramienta(texts_main):
-    """Función principal que renderiza el módulo en Streamlit."""
+    """Main function that renders the module in Streamlit."""
     lang = st.session_state.get("lang", "en")
     t = TEXTS_DG[lang]
     
@@ -159,56 +313,85 @@ def render_nueva_herramienta(texts_main):
         st.warning(t["error_rdkit"])
         return
 
-    # Inicializar estado para este módulo si no existe
     if "dg_questions" not in st.session_state:
         st.session_state.dg_questions = []
         
     if "last_fg_preview" not in st.session_state:
         st.session_state.last_fg_preview = None
 
-    # --- DISEÑO DE DOS COLUMNAS ---
+    if "temp_fg_data" not in st.session_state:
+        st.session_state.temp_fg_data = None
+
+    # --- TWO-COLUMN LAYOUT ---
     col_input, col_list = st.columns([1.1, 0.9], gap="large")
 
-    # ================= COLUMNA IZQUIERDA: ENTRADA (INDIVIDUAL Y MASIVA) =================
+    # ================= LEFT COLUMN: INPUT (INDIVIDUAL & BULK) =================
     with col_input:
         tab_ind, tab_bulk = st.tabs([t["tab_individual"], t["tab_bulk"]])
 
         with tab_ind:
-            with st.form("form_individual_dg", clear_on_submit=True):
+            # Step 1: Input molecule and analyze
+            with st.form("form_individual_dg_detect"):
                 c_name = st.text_input(t["compound_name"])
-                f_group = st.text_input(t["functional_group"])
-                submitted = st.form_submit_button(t["add_question"], type="primary", icon=":material/add_task:")
+                submitted_detect = st.form_submit_button(t["detect_btn"], type="primary", icon=":material/auto_fix_high:")
                 
-                if submitted:
-                    if not c_name.strip() or not f_group.strip():
-                        st.error("Por favor, completa ambos campos." if lang == "es" else "Please fill in all fields.")
+                if submitted_detect:
+                    if not c_name.strip():
+                        st.error(t["error_enter_name"])
+                        st.session_state.temp_fg_data = None
                     else:
-                        with st.spinner("Buscando estructura y generando imagen..."):
-                            smiles = name_to_smiles_simple(c_name)
-                            if not smiles:
+                        with st.spinner(t["spinner_analyzing"]):
+                            smiles, mol = name_to_smiles_simple(c_name)
+                            if not smiles or not mol:
                                 st.error(t["error_smiles"].format(c_name))
+                                st.session_state.temp_fg_data = None
                             else:
-                                img_b64 = smiles_to_png_base64(smiles)
-                                st.session_state.dg_questions.append({
+                                detected_fg = detectar_grupo_funcional(mol, lang)
+                                if not detected_fg:
+                                    detected_fg = 'Alkane' if lang == 'en' else 'Alcano'
+                                
+                                img_b64 = smiles_to_png_base64(mol)
+                                st.session_state.temp_fg_data = {
                                     "name": c_name.strip(),
-                                    "functional_group": f_group.strip(),
+                                    "functional_group": detected_fg,
                                     "smiles": smiles,
                                     "image_b64": img_b64
-                                })
-                                # Guardar la vista previa para mostrarla fuera del formulario
-                                st.session_state.last_fg_preview = {
-                                    "name": c_name.strip(),
-                                    "functional_group": f_group.strip(),
-                                    "image_b64": img_b64
                                 }
-                                st.success(t["success_added"])
 
-            # Mostrar la previsualización del último compuesto añadido fuera del formulario
+            # Step 2: If analyzed, show preview, allow manual editing and confirm
+            if st.session_state.temp_fg_data:
+                data = st.session_state.temp_fg_data
+                st.success(t["success_analyzed"].format(data['name']))
+                
+                if data["image_b64"]:
+                    st.image(f"data:image/png;base64,{data['image_b64']}", width=250, caption=data["name"])
+
+                with st.form("form_individual_dg_confirm"):
+                    edited_fg = st.text_input(t["fg_label"], value=data["functional_group"])
+                    submitted_add = st.form_submit_button(t["add_question"], type="primary", icon=":material/add_task:")
+                    
+                    if submitted_add:
+                        if not edited_fg.strip():
+                            st.error(t["error_fg_empty"])
+                        else:
+                            st.session_state.dg_questions.append({
+                                "name": data["name"],
+                                "functional_group": edited_fg.strip(),
+                                "smiles": data["smiles"],
+                                "image_b64": data["image_b64"]
+                            })
+                            st.session_state.last_fg_preview = {
+                                "name": data["name"],
+                                "functional_group": edited_fg.strip(),
+                                "image_b64": data["image_b64"]
+                            }
+                            st.session_state.temp_fg_data = None
+                            st.success(t["success_added"].format(edited_fg.strip()))
+                            st.rerun()
+
             if st.session_state.last_fg_preview:
                 prev = st.session_state.last_fg_preview
-                st.markdown(f"**Última molécula añadida:** `{prev['name']}`<br>Grupo: **{prev['functional_group']}**", unsafe_allow_html=True)
-                if prev["image_b64"]:
-                    st.image(f"data:image/png;base64,{prev['image_b64']}", width=250, caption=prev["name"])
+                st.markdown(f"**{t['last_added']}:** `{prev['name']}`<br>{t['group_detected']}: **{prev['functional_group']}**", unsafe_allow_html=True)
 
         with tab_bulk:
             st.info(t["bulk_note"])
@@ -221,45 +404,65 @@ def render_nueva_herramienta(texts_main):
                     else:
                         df = pd.read_excel(uploaded_file)
                         
-                    if not {"name", "functional_group"}.issubset(df.columns):
-                        st.error("El archivo debe contener las columnas exactas: 'name' y 'functional_group'.")
+                    col_name = 'name' if 'name' in df.columns else ('nombre' if 'nombre' in df.columns else None)
+                    if not col_name:
+                        st.error(t["error_col_name"])
                     else:
+                        col_fg = 'functional_group' if 'functional_group' in df.columns else ('grupo_funcional' if 'grupo_funcional' in df.columns else None)
+                        
                         success_count = 0
                         fail_count = 0
-                        progress_bar = st.progress(0, text="Procesando lote...")
+                        errores_detalle = []
+                        
+                        progress_bar = st.progress(0, text=t["progress_batch"])
                         total = len(df)
                         
                         for idx, row in df.iterrows():
-                            c_name = str(row["name"]).strip()
-                            f_group = str(row["functional_group"]).strip()
-                            progress_bar.progress((idx + 1) / total, text=f"Procesando: {c_name}")
+                            c_name = str(row[col_name]).strip()
+                            progress_bar.progress((idx + 1) / total, text=f"Processing: {c_name}")
                             
-                            smiles = name_to_smiles_simple(c_name)
-                            if smiles:
-                                img_b64 = smiles_to_png_base64(smiles)
-                                st.session_state.dg_questions.append({
-                                    "name": c_name,
-                                    "functional_group": f_group,
-                                    "smiles": smiles,
-                                    "image_b64": img_b64
-                                })
-                                success_count += 1
-                            else:
+                            custom_fg = None
+                            if col_fg and pd.notna(row[col_fg]) and str(row[col_fg]).strip():
+                                custom_fg = str(row[col_fg]).strip()
+                            
+                            smiles, mol = name_to_smiles_simple(c_name)
+                            if not smiles or not mol:
                                 fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": c_name, "cause": "SMILES not found in NCI CIR"})
+                                continue
+                                
+                            if custom_fg:
+                                f_group = custom_fg
+                            else:
+                                f_group = detectar_grupo_funcional(mol, lang)
+                                
+                            img_b64 = smiles_to_png_base64(mol)
+                            st.session_state.dg_questions.append({
+                                "name": c_name,
+                                "functional_group": f_group,
+                                "smiles": smiles,
+                                "image_b64": img_b64
+                            })
+                            success_count += 1
                                 
                         progress_bar.empty()
                         st.success(t["bulk_success"].format(success_count, fail_count))
+                        
+                        if errores_detalle:
+                            with st.expander(t["bulk_errors_title"]):
+                                df_err = pd.DataFrame(errores_detalle)
+                                st.dataframe(df_err, use_container_width=True)
+                                
                 except Exception as e:
-                    st.error(f"Error procesando el archivo: {e}")
+                    st.error(f"Error processing file: {e}")
 
     # ================= COLUMNA DERECHA: LISTADO Y EXPORTACIÓN =================
     with col_list:
         st.subheader(t["section_export"])
         
         if st.session_state.dg_questions:
-            st.write(f"Total de preguntas en la lista: **{len(st.session_state.dg_questions)}**")
+            st.write(f"Total questions in list: **{len(st.session_state.dg_questions)}**")
             
-            # --- BOTONES PRINCIPALES EN VERTICAL ---
             xml_data = generate_short_answer_xml(st.session_state.dg_questions, lang)
             
             st.markdown("""
@@ -289,11 +492,11 @@ def render_nueva_herramienta(texts_main):
             if st.button(t["clear_all"], type="secondary", icon=":material/delete_sweep:", use_container_width=True):
                 st.session_state.dg_questions = []
                 st.session_state.last_fg_preview = None
+                st.session_state.temp_fg_data = None
                 st.rerun()
             
             st.divider()
                 
-            # Contenedor con scroll para la lista de preguntas
             container_list = st.container(height=420)
             with container_list:
                 for i, q in enumerate(st.session_state.dg_questions):
@@ -302,7 +505,7 @@ def render_nueva_herramienta(texts_main):
                         if q['image_b64']:
                             st.image(f"data:image/png;base64,{q['image_b64']}", width=100)
                     with cols_item[1]:
-                        st.markdown(f"**#{i+1}** (`{q['name']}`)<br>Grupo: **{q['functional_group']}**", unsafe_allow_html=True)
+                        st.markdown(f"**#{i+1}** (`{q['name']}`)<br>{t['group_label']}: **{q['functional_group']}**", unsafe_allow_html=True)
                     with cols_item[2]:
                         if st.button("🗑️", key=f"del_dg_{i}"):
                             st.session_state.dg_questions.pop(i)
