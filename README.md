@@ -59,6 +59,8 @@ git clone https://github.com/cfmarcos64/Moodle_chem_quizz.git
 cd Moodle_chem_quizz
 
 pip install -r requirements.txt
+streamlit run Chem_quiz.py
+# The application will open in a web browser
 ```
 
 ## 📦 Project Dependencies
