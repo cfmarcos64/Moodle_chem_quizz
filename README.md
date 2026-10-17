@@ -48,7 +48,7 @@ There are two primary ways to access and use this tool:
 
 The application is deployed publicly and can be accessed directly through this link:
 
-👉 https://chemformoodle.streamlit.app/
+👉 [https://chemformoodle.streamlit.app/](https://moodlechemquizz.streamlit.app/)
 
 ### Option 2: Run Locally 
 
