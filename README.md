@@ -40,7 +40,17 @@ All tools share a unified design philosophy: the educator provides compound name
 
 ---
 
-## 🛠️ How to Run the Suite Locally
+## 🛠️ How to Run the Suite
+
+There are two primary ways to access and use this tool:
+
+### Option 1: Use the Public Web Application
+
+The application is deployed publicly and can be accessed directly through this link:
+
+👉 https://chemformoodle.streamlit.app/
+
+### Option 2: Run Locally 
 
 1. **Clone the Repository & Install Python Dependencies**:
 
@@ -50,14 +60,6 @@ cd Moodle_chem_quizz
 
 pip install -r requirements.txt
 ```
-
-2. **Launch the Suite with Streamlit**:
-
-```bash
-streamlit run Chem_quiz.py
-```
-
----
 
 ## 📦 Project Dependencies
 
