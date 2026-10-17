@@ -6,9 +6,10 @@ Created on Fri Oct 16 09:05:18 2026
 """
 
 """
-Módulo de Análisis de Estereoisómeros para la Suite de Moodle.
-Permite comparar la molécula base (con centros quirales y/o alquenos Z/E) con estereoisómeros
-automáticos o con otro compuesto introducido manualmente, clasificándolo en las 4 categorías requeridas.
+Stereoisomer Analysis Module for the Moodle Chemistry Suite.
+Allows comparing a base molecule (with chiral centers and/or Z/E alkenes) with automatic
+stereoisomers or another manually entered compound, classifying them into the 4 required categories,
+with Moodle multiple-choice XML export and detailed bulk upload error reporting.
 """
 
 import streamlit as st
@@ -18,7 +19,7 @@ import requests
 import io
 import base64
 
-# --- Verificación de Dependencias (RDKit) ---
+# --- Dependency Verification (RDKit) ---
 try:
     from rdkit import Chem
     from rdkit.Chem import FindMolChiralCenters, Draw
@@ -27,7 +28,7 @@ try:
 except ImportError:
     RDKIT_AVAILABLE = False
 
-# Textos bilingües para la interfaz
+# Bilingual interface texts
 TEXTS_STEREO = {
     "es": {
         "title": "Análisis y Relación de Estereoisómeros 🔄",
@@ -46,7 +47,7 @@ TEXTS_STEREO = {
         "relationship_label": "Relación estereoquímica / tipo detectado:",
         "add_question": "Añadir Pregunta a la Lista",
         "bulk_uploader": "Sube un archivo Excel (.xlsx) o CSV",
-        "bulk_note": "El archivo debe contener las columnas: **'molecule1'** y **'molecule2'**.",
+        "bulk_note": "El archivo debe contener las columnas exactas: **'molecule1'** y **'molecule2'**.",
         "start_bulk": "Procesar Carga Masiva",
         "question_title": "Relación Estereoquímica: {} vs {}",
         "question_text": "¿Cuál es la relación entre la molécula 1 (izquierda) y la molécula 2 (derecha)?",
@@ -54,13 +55,20 @@ TEXTS_STEREO = {
         "clear_all": "Borrar Toda la Lista",
         "error_rdkit": "RDKit no está disponible en este entorno.",
         "error_smiles": "No se pudo encontrar un SMILES válido para '{}' en NCI CIR.",
+        "error_required": "Por favor, introduce el nombre de una molécula.",
+        "error_col_cols": "El archivo debe contener las columnas exactas: 'molecule1' y 'molecule2'.",
         "success_added": "Pregunta añadida correctamente a la lista.",
         "bulk_success": "Carga masiva completada: **{}** éxitos, **{}** fallos.",
+        "bulk_errors_title": "Ver detalle de errores en la carga masiva",
         "empty_list": "Aún no hay preguntas añadidas. Completa el formulario de la izquierda.",
         "rel_enantiomer": "Son enantiómeros",
         "rel_diastereomer": "Son diastereoisómeros",
         "rel_identical": "Son compuestos idénticos",
-        "rel_different": "Son compuestos diferentes no estereoisoméricos"
+        "rel_different": "Son compuestos diferentes no estereoisoméricos",
+        "unassigned_warning": "La molécula tiene centros quirales pero **no se ha indicado su estereoquímica** (ej: utiliza prefijos como *(2R)* o *(2S)*).",
+        "no_stereo_warning": "La molécula analizada no presenta elementos estereogénicos detectables o especificados.",
+        "last_added": "Última comparación añadida",
+        "type_label": "Tipo"
     },
     "en": {
         "title": "Stereoisomer Analysis & Relationship 🔄",
@@ -87,18 +95,25 @@ TEXTS_STEREO = {
         "clear_all": "Clear All List",
         "error_rdkit": "RDKit is not available in this environment.",
         "error_smiles": "Could not find a valid SMILES for '{}' via NCI CIR.",
+        "error_required": "Please enter a molecule name.",
+        "error_col_cols": "The file must contain exact columns: 'molecule1' and 'molecule2'.",
         "success_added": "Question successfully added to the list.",
         "bulk_success": "Bulk processing complete: **{}** successes, **{}** failures.",
+        "bulk_errors_title": "View bulk upload error details",
         "empty_list": "No questions added yet. Fill out the form on the left.",
         "rel_enantiomer": "They are enantiomers",
         "rel_diastereomer": "They are diastereomers",
         "rel_identical": "They are identical compounds",
-        "rel_different": "They are different non-stereoisomeric compounds"
+        "rel_different": "They are different non-stereoisomeric compounds",
+        "unassigned_warning": "The molecule has chiral centers but **stereochemistry is not specified** (e.g., use prefixes like *(2R)* or *(2S)*).",
+        "no_stereo_warning": "The analyzed molecule has no detectable or specified stereogenic elements.",
+        "last_added": "Last added comparison",
+        "type_label": "Type"
     }
 }
 
 def resolver_smiles(input_str):
-    """Obtiene el SMILES canónico a partir del nombre (vía NCI CIR) o valida un SMILES directo."""
+    """Retrieves canonical SMILES from a name (via NCI CIR) or validates direct SMILES."""
     input_limpio = str(input_str).strip()
     if not input_limpio:
         return None
@@ -125,7 +140,7 @@ def resolver_smiles(input_str):
     return None
 
 def generar_imagen_comparativa_b64(mol1, mol2):
-    """Genera una imagen PNG en Base64 con las dos moléculas lado a lado de forma limpia."""
+    """Generates a Base64 PNG image showing both molecules side by side cleanly."""
     if not RDKIT_AVAILABLE:
         return None
     try:
@@ -147,7 +162,7 @@ def generar_imagen_comparativa_b64(mol1, mol2):
     return None
 
 def obtener_descripcion_estereo(mol):
-    """Obtiene una cadena descriptiva de los centros quirales y dobles enlaces Z/E de la molécula."""
+    """Returns a descriptive string of chiral centers and Z/E double bonds in the molecule."""
     Chem.AssignStereochemistry(mol, force=True, cleanIt=True)
     partes = []
     
@@ -160,17 +175,17 @@ def obtener_descripcion_estereo(mol):
             stereo = bond.GetStereo()
             if stereo in [Chem.rdchem.BondStereo.STEREOZ, Chem.rdchem.BondStereo.STEREOE]:
                 label = "Z" if stereo == Chem.rdchem.BondStereo.STEREOZ else "E"
-                partes.append(f"Enlace {bond.GetBeginAtomIdx()}={bond.GetEndAtomIdx()}:{label}")
+                partes.append(f"Bond {bond.GetBeginAtomIdx()}={bond.GetEndAtomIdx()}:{label}")
                 
-    return " | ".join(partes) if partes else "Sin estereocentros explícitos"
+    return " | ".join(partes) if partes else "No explicit stereocenters"
 
 def calcular_relacion_estereoquimica(mol_orig, mol_sel):
     """
-    Evalúa la relación exacta entre dos moléculas:
-    - 'different': Si no tienen la misma fórmula o conectividad.
-    - 'identical': Si son idénticas o forman una estructura meso.
-    - 'enantiomer': Si son enantiómeros.
-    - 'diastereomer': Si son diastereoisómeros (incluye isómeros Z/E).
+    Evaluates the exact relationship between two molecules:
+    - 'different': Different formula or connectivity.
+    - 'identical': Identical compounds or meso forms.
+    - 'enantiomer': Enantiomers.
+    - 'diastereomer': Diastereomers (including Z/E isomers).
     """
     try:
         smi_base_no_stereo = Chem.MolToSmiles(mol_orig, isomericSmiles=False)
@@ -224,7 +239,7 @@ def calcular_relacion_estereoquimica(mol_orig, mol_sel):
         return "different"
 
 def generar_multichoice_xml(questions_list, lang):
-    """Genera el XML para Moodle de tipo 'multichoice' con las 4 opciones de respuesta exigidas."""
+    """Generates Moodle XML for multiple-choice questions with the 4 required answer options."""
     t = TEXTS_STEREO[lang]
     quiz = ET.Element("quiz")
     
@@ -247,7 +262,7 @@ def generar_multichoice_xml(questions_list, lang):
         ET.SubElement(ET.SubElement(q_name, "text"), "text").text = t["question_title"].format(name1, name2)
         
         q_text = ET.SubElement(question, "questiontext", format="html")
-        img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="Comparación estéreo" /></p>' if b64_img else ""
+        img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="Stereo comparison" /></p>' if b64_img else ""
         ET.SubElement(q_text, "text").text = f"<![CDATA[<p>{t['question_text']}</p>{img_tag}]]>"
         
         for key, text_val in opciones_map.items():
@@ -255,7 +270,7 @@ def generar_multichoice_xml(questions_list, lang):
             answer = ET.SubElement(question, "answer", fraction=fraction, format="moodle_auto_format")
             ET.SubElement(answer, "text").text = text_val
             feedback = ET.SubElement(answer, "feedback", format="html")
-            ET.SubElement(feedback, "text").text = "¡Correcto!" if fraction == "100" else "Incorrecto."
+            ET.SubElement(feedback, "text").text = "¡Correcto!" if lang == "es" and fraction == "100" else ("Correct!" if fraction == "100" else ("Incorrecto." if lang == "es" else "Incorrect."))
             
         quiz.append(question)
         
@@ -264,7 +279,7 @@ def generar_multichoice_xml(questions_list, lang):
     return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
 
 def render_nueva_herramienta(texts_main):
-    """Función principal que renderiza el módulo de estereoisómeros en Streamlit."""
+    """Main function that renders the stereoisomer analysis module in Streamlit."""
     lang = st.session_state.get("lang", "en")
     t = TEXTS_STEREO[lang]
     
@@ -275,29 +290,29 @@ def render_nueva_herramienta(texts_main):
         st.warning(t["error_rdkit"])
         return
 
-    # Inicializar estado para este módulo
+    # Initialize state for this module
     if "stereo_questions" not in st.session_state:
         st.session_state.stereo_questions = []
 
-    # --- DISEÑO DE DOS COLUMNAS ---
+    # --- TWO-COLUMN LAYOUT ---
     col_input, col_list = st.columns([1.1, 0.9], gap="large")
 
-    # ================= COLUMNA IZQUIERDA: ENTRADA (INDIVIDUAL Y MASIVA) =================
+    # ================= LEFT COLUMN: INPUT (INDIVIDUAL & BULK) =================
     with col_input:
         tab_ind, tab_bulk = st.tabs([t["tab_individual"], t["tab_bulk"]])
 
         with tab_ind:
-            # Paso 1: Introducir molécula base
+            # Step 1: Input base molecule
             with st.form("form_base_stereo"):
                 c_name = st.text_input(t["compound_name"])
                 submitted_base = st.form_submit_button(t["btn_analyze"], type="primary")
                 
                 if submitted_base:
                     if not c_name.strip():
-                        st.error("Por favor, introduce el nombre de una molécula." if lang == "es" else "Please enter a molecule name.")
+                        st.error(t["error_required"])
                         st.session_state.active_mol_data = None
                     else:
-                        with st.spinner("Buscando estructura y analizando elementos estereogénicos..."):
+                        with st.spinner("Searching structure and analyzing stereogenic elements..." if lang=="en" else "Buscando estructura y analizando elementos estereogénicos..."):
                             smiles = resolver_smiles(c_name)
                             if not smiles:
                                 st.error(t["error_smiles"].format(c_name))
@@ -306,11 +321,9 @@ def render_nueva_herramienta(texts_main):
                                 mol = Chem.MolFromSmiles(smiles)
                                 Chem.AssignStereochemistry(mol, force=True, cleanIt=True)
                                 
-                                # Comprobar centros quirales (incluyendo no asignados '?')
                                 chiral_centers = FindMolChiralCenters(mol, includeUnassigned=True)
                                 tiene_quirales_sin_asignar = any(config == '?' for idx, config in chiral_centers)
                                 
-                                # Comprobar dobles enlaces con estereoquímica Z/E explícita
                                 has_double_bonds_specified = any(
                                     b.GetBondType() == Chem.rdchem.BondType.DOUBLE and 
                                     b.GetStereo() in [Chem.rdchem.BondStereo.STEREOZ, Chem.rdchem.BondStereo.STEREOE]
@@ -318,10 +331,10 @@ def render_nueva_herramienta(texts_main):
                                 )
                                 
                                 if tiene_quirales_sin_asignar:
-                                    st.warning("La molécula tiene centros quirales pero **no se ha indicado su estereoquímica** (ej: utiliza prefijos como *(2R)* o *(2S)*)." if lang == "es" else "The molecule has chiral centers but stereochemistry is not specified.")
+                                    st.warning(t["unassigned_warning"])
                                     st.session_state.active_mol_data = None
                                 elif not chiral_centers and not has_double_bonds_specified:
-                                    st.warning("La molécula analizada no presenta elementos estereogénicos detectables o especificados." if lang == "es" else "The analyzed molecule has no detectable or specified stereogenic elements.")
+                                    st.warning(t["no_stereo_warning"])
                                     st.session_state.active_mol_data = None
                                 else:
                                     mol_para_enum = Chem.Mol(mol)
@@ -345,10 +358,10 @@ def render_nueva_herramienta(texts_main):
                                         "isomers": lista_isomeros
                                     }
 
-            # Paso 2: Si la molécula base está cargada, permitir elegir modo de comparación
+            # Step 2: If base molecule is loaded, select comparison mode
             if "active_mol_data" in st.session_state and st.session_state.active_mol_data:
                 data = st.session_state.active_mol_data
-                st.success(f"Molécula base cargada: `{data['name']}`")
+                st.success(f"Base molecule loaded: `{data['name']}`" if lang=="en" else f"Molécula base cargada: `{data['name']}`")
 
                 modo = st.radio(t["mode_selection"], [t["option_auto"], t["option_manual"]])
 
@@ -361,9 +374,9 @@ def render_nueva_herramienta(texts_main):
 
                 if modo == t["option_auto"]:
                     if not data["isomers"]:
-                        st.warning("La molécula base no generó estereoisómeros adicionales.")
+                        st.warning("The base molecule did not generate additional stereoisomers." if lang=="en" else "La molécula base no generó estereoisómeros adicionales.")
                     else:
-                        options_map_sel = {f"Estereoisómero {iso['id']} [{iso['config']}]": iso for iso in data["isomers"]}
+                        options_map_sel = {f"Stereoisomer {iso['id']} [{iso['config']}]" if lang=="en" else f"Estereoisómero {iso['id']} [{iso['config']}]": iso for iso in data["isomers"]}
                         seleccion_str = st.selectbox(t["select_isomer"], list(options_map_sel.keys()))
                         
                         if seleccion_str:
@@ -380,20 +393,20 @@ def render_nueva_herramienta(texts_main):
                             if st.button(t["add_question"], type="primary", icon=":material/add_task:", use_container_width=True):
                                 st.session_state.stereo_questions.append({
                                     "name1": f"{data['name']} (Orig)",
-                                    "name2": f"Isómero {iso_elegido['id']} [{iso_elegido['config']}]",
+                                    "name2": f"Isomer {iso_elegido['id']} [{iso_elegido['config']}]" if lang=="en" else f"Isómero {iso_elegido['id']} [{iso_elegido['config']}]",
                                     "relationship": relacion,
                                     "image_b64": img_b64
                                 })
                                 st.success(t["success_added"])
 
-                else:  # Modo manual para el segundo compuesto
+                else:  # Manual mode for second compound
                     with st.form("form_manual_comparison"):
                         comp2_input = st.text_input(t["manual_comparison_name"])
                         submitted_eval = st.form_submit_button(t["btn_evaluate_manual"], type="primary")
                         
                         if submitted_eval:
                             if not comp2_input.strip():
-                                st.error("Por favor, introduce un nombre o SMILES válido.")
+                                st.error("Please enter a valid name or SMILES." if lang=="en" else "Por favor, introduce un nombre o SMILES válido.")
                                 st.session_state.manual_eval_result = None
                             else:
                                 smi2 = resolver_smiles(comp2_input)
@@ -411,7 +424,7 @@ def render_nueva_herramienta(texts_main):
                                         "image_b64": img_b64
                                     }
 
-                    # Mostrar resultado de la evaluación manual fuera del form
+                    # Show manual evaluation result outside the form
                     if "manual_eval_result" in st.session_state and st.session_state.manual_eval_result:
                         res = st.session_state.manual_eval_result
                         st.info(f"**{t['relationship_label']}** {textos_rel[res['relationship']]}")
@@ -439,50 +452,75 @@ def render_nueva_herramienta(texts_main):
                         df = pd.read_excel(uploaded_file)
                         
                     if not {"molecule1", "molecule2"}.issubset(df.columns):
-                        st.error("El archivo debe contener las columnas exactas: 'molecule1' y 'molecule2'.")
+                        st.error(t["error_col_cols"])
                     else:
                         success_count = 0
                         fail_count = 0
-                        progress_bar = st.progress(0, text="Procesando lote de pares...")
+                        errores_detalle = []
+                        
+                        progress_bar = st.progress(0, text="Processing batch..." if lang=="en" else "Procesando lote de pares...")
                         total = len(df)
                         
                         for idx, row in df.iterrows():
-                            m1_input = str(row["molecule1"]).strip()
-                            m2_input = str(row["molecule2"]).strip()
-                            progress_bar.progress((idx + 1) / total, text=f"Procesando: {m1_input} vs {m2_input}")
+                            m1_input = str(row["molecule1"]).strip() if pd.notna(row["molecule1"]) else ""
+                            m2_input = str(row["molecule2"]).strip() if pd.notna(row["molecule2"]) else ""
+                            progress_bar.progress((idx + 1) / total, text=f"Processing: {m1_input} vs {m2_input}")
                             
-                            smi1 = resolver_smiles(m1_input)
-                            smi2 = resolver_smiles(m2_input)
-                            
-                            if smi1 and smi2:
-                                mol1 = Chem.MolFromSmiles(smi1)
-                                mol2 = Chem.MolFromSmiles(smi2)
-                                relacion = calcular_relacion_estereoquimica(mol1, mol2)
-                                img_b64 = generar_imagen_comparativa_b64(mol1, mol2)
-                                
-                                st.session_state.stereo_questions.append({
-                                    "name1": m1_input,
-                                    "name2": m2_input,
-                                    "relationship": relacion,
-                                    "image_b64": img_b64
-                                })
-                                success_count += 1
-                            else:
+                            if not m1_input or not m2_input or m1_input == "nan" or m2_input == "nan":
                                 fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": f"{m1_input} vs {m2_input}", "cause": "Missing molecule 1 or molecule 2"})
+                                continue
+                                
+                            smi1 = resolver_smiles(m1_input)
+                            if not smi1:
+                                fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": f"{m1_input} vs {m2_input}", "cause": f"SMILES not found for '{m1_input}'"})
+                                continue
+                                
+                            smi2 = resolver_smiles(m2_input)
+                            if not smi2:
+                                fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": f"{m1_input} vs {m2_input}", "cause": f"SMILES not found for '{m2_input}'"})
+                                continue
+                                
+                            mol1 = Chem.MolFromSmiles(smi1)
+                            mol2 = Chem.MolFromSmiles(smi2)
+                            
+                            if not mol1 or not mol2:
+                                fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": f"{m1_input} vs {m2_input}", "cause": "Error parsing SMILES"})
+                                continue
+                                
+                            relacion = calcular_relacion_estereoquimica(mol1, mol2)
+                            img_b64 = generar_imagen_comparativa_b64(mol1, mol2)
+                            
+                            st.session_state.stereo_questions.append({
+                                "name1": m1_input,
+                                "name2": m2_input,
+                                "relationship": relacion,
+                                "image_b64": img_b64
+                            })
+                            success_count += 1
                                 
                         progress_bar.empty()
                         st.success(t["bulk_success"].format(success_count, fail_count))
+                        
+                        if errores_detalle:
+                            with st.expander(t["bulk_errors_title"]):
+                                df_err = pd.DataFrame(errores_detalle)
+                                st.dataframe(df_err, use_container_width=True)
+                                
                 except Exception as e:
-                    st.error(f"Error procesando el archivo: {e}")
+                    st.error(f"Error processing file: {e}")
 
-    # ================= COLUMNA DERECHA: LISTADO Y EXPORTACIÓN =================
+    # ================= RIGHT COLUMN: LIST & EXPORT =================
     with col_list:
         st.subheader(t["section_export"])
         
         if st.session_state.stereo_questions:
-            st.write(f"Total de preguntas en la lista: **{len(st.session_state.stereo_questions)}**")
+            st.write(f"Total questions in list: **{len(st.session_state.stereo_questions)}**" if lang=="en" else f"Total de preguntas en la lista: **{len(st.session_state.stereo_questions)}**")
             
-            # --- BOTONES PRINCIPALES EN VERTICAL ---
+            # --- VERTICALLY ALIGNED MAIN BUTTONS ---
             xml_data = generar_multichoice_xml(st.session_state.stereo_questions, lang)
             
             st.markdown("""
@@ -522,7 +560,7 @@ def render_nueva_herramienta(texts_main):
                 "different": t["rel_different"]
             }
             
-            # Contenedor con scroll para la lista de preguntas
+            # Scrollable container for questions list
             container_list = st.container(height=420)
             with container_list:
                 for i, q in enumerate(st.session_state.stereo_questions):
@@ -532,7 +570,7 @@ def render_nueva_herramienta(texts_main):
                             st.image(f"data:image/png;base64,{q['image_b64']}", width=100)
                     with cols_item[1]:
                         rel_texto = textos_rel_list.get(q['relationship'], q['relationship'])
-                        st.markdown(f"**#{i+1}**<br>`{q['name1']}`<br>vs `{q['name2']}`<br>Tipo: **{rel_texto}**", unsafe_allow_html=True)
+                        st.markdown(f"**#{i+1}**<br>`{q['name1']}`<br>vs `{q['name2']}`<br>{t['type_label']}: **{rel_texto}**", unsafe_allow_html=True)
                     with cols_item[2]:
                         if st.button("🗑️", key=f"del_stereo_{i}"):
                             st.session_state.stereo_questions.pop(i)

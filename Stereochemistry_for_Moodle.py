@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Estereoquímica y Centros Quirales/Geométricos para la Suite de Moodle.
-Permite detección automática de centros quirales (R/S) y dobles enlaces (Z/E) con RDKit,
-textos de enunciados adaptados, diseño en dos columnas, previsualización y exportación a XML.
+Created on Fri Oct 16 10:15:20 2026
+
+@author: Carlos Fernandez
+"""
+
+"""
+Stereochemistry and Chiral/Geometric Centers Module for the Moodle Chemistry Suite.
+Allows automatic detection of chiral centers (R/S) and double bonds (Z/E) with RDKit,
+adapted prompt texts, two-column layout, live preview, XML export, and detailed bulk upload error reporting.
 """
 
 import streamlit as str_lit
@@ -12,7 +18,7 @@ import requests
 import io
 import base64
 
-# --- Verificación de Dependencias (RDKit) ---
+# --- Dependency Verification (RDKit) ---
 try:
     from rdkit import Chem
     from rdkit.Chem import FindMolChiralCenters, Draw
@@ -20,7 +26,7 @@ try:
 except ImportError:
     RDKIT_AVAILABLE = False
 
-# Textos bilingües para la interfaz y enunciados adaptados
+# Bilingual interface texts and adapted prompts
 TEXTS_EQ = {
     "es": {
         "title": "Generador de Preguntas de Estereoquímica 🧬",
@@ -34,7 +40,6 @@ TEXTS_EQ = {
         "bulk_note": "El archivo debe contener al menos una columna llamada **'name'** o **'nombre'** con los nombres en inglés.",
         "start_bulk": "Procesar Carga Masiva",
         "question_title": "Estereoquímica de {}",
-        # Prompts dinámicos según el tipo de estereoisomería
         "prompt_chiral": "Indica la configuración absoluta de los centros quirales señalados (formato: índiceR/S, ej: 1S o 2R, 4S):",
         "prompt_geometric": "Indica la configuración geométrica de los dobles enlaces señalados (formato: índiceZ/E, ej: 2Z o 3E):",
         "prompt_both": "Indica la configuración estereoquímica absoluta y geométrica de los elementos señalados (ej: 2R, 4E):",
@@ -43,9 +48,14 @@ TEXTS_EQ = {
         "error_rdkit": "RDKit no está disponible en este entorno para realizar los cálculos estereoquímicos.",
         "error_smiles": "No se pudo encontrar un SMILES válido para el compuesto '{}' en NCI CIR.",
         "error_chiral": "La molécula analizada no presenta elementos estereogénicos detectables (centros quirales ni dobles enlaces Z/E).",
+        "error_enter_name": "Por favor, introduce el nombre de la molécula.",
+        "error_col_name": "El archivo debe contener al menos una columna llamada 'name' o 'nombre'.",
         "success_added": "Pregunta de estereoquímica añadida correctamente.",
         "bulk_success": "Carga masiva completada: **{}** éxitos, **{}** fallos.",
-        "empty_list": "Aún no hay preguntas añadidas. Completa el formulario de la izquierda."
+        "bulk_errors_title": "Ver detalle de errores en la carga masiva",
+        "empty_list": "Aún no hay preguntas añadidas. Completa el formulario de la izquierda.",
+        "last_added": "Última molécula añadida",
+        "config_label": "Config"
     },
     "en": {
         "title": "Stereochemistry Question Generator 🧬",
@@ -56,7 +66,7 @@ TEXTS_EQ = {
         "compound_name": "Molecule name in English (e.g., 2-butene, L-lactic acid)",
         "add_question": "Analyze and Add to List",
         "bulk_uploader": "Upload Excel (.xlsx) or CSV file",
-        "bulk_note": "The file must contain a column named **'name'** with molecule names in English.",
+        "bulk_note": "The file must contain a column named **'name'** or **'nombre'** with molecule names in English.",
         "start_bulk": "Process Bulk Upload",
         "question_title": "Stereochemistry of {}",
         "prompt_chiral": "Indicate the absolute configuration of the specified chiral centers (format: indexR/S, e.g., 1S or 2R, 4S):",
@@ -67,14 +77,19 @@ TEXTS_EQ = {
         "error_rdkit": "RDKit is not available in this environment to perform stereochemical calculations.",
         "error_smiles": "Could not find a valid SMILES for compound '{}' via NCI CIR.",
         "error_chiral": "The analyzed molecule has no detectable stereogenic elements (chiral centers or Z/E double bonds).",
+        "error_enter_name": "Please enter a molecule name.",
+        "error_col_name": "The file must contain at least a 'name' or 'nombre' column.",
         "success_added": "Stereochemistry question successfully added.",
         "bulk_success": "Bulk processing complete: **{}** successes, **{}** failures.",
-        "empty_list": "No questions added yet. Fill out the form on the left."
+        "bulk_errors_title": "View bulk upload error details",
+        "empty_list": "No questions added yet. Fill out the form on the left.",
+        "last_added": "Last added molecule",
+        "config_label": "Config"
     }
 }
 
 def buscar_smiles_nci(nombre_molecula):
-    """Busca el SMILES canónico de una molécula usando la API de NCI CIR."""
+    """Searches for the canonical SMILES of a molecule using the NCI CIR API."""
     nombre_limpio = nombre_molecula.strip()
     url = f"http://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(nombre_limpio)}/smiles"
     try:
@@ -89,30 +104,30 @@ def buscar_smiles_nci(nombre_molecula):
 
 def analizar_estereoquimica_mol(nombre_molecula):
     """
-    Carga la molécula, calcula estereoquímica CIP (quiral y dobles enlaces Z/E),
-    asigna etiquetas/notas a los átomos y enlaces correspondientes y genera la imagen.
+    Loads the molecule, calculates CIP stereochemistry (chiral and Z/E double bonds),
+    assigns labels/notes to corresponding atoms and bonds, and generates the image.
     """
     if not RDKIT_AVAILABLE:
-        return None, None, [], "RDKit no disponible"
+        return None, None, [], "RDKit not available"
 
     smiles = buscar_smiles_nci(nombre_molecula)
     if not smiles:
-        return None, None, [], f"SMILES no encontrado para {nombre_molecula}"
+        return None, None, [], f"SMILES not found for {nombre_molecula}"
 
     mol = Chem.MolFromSmiles(smiles)
     if not mol:
-        return None, None, [], f"Error parseando SMILES: {smiles}"
+        return None, None, [], f"Error parsing SMILES: {smiles}"
 
     try:
         Chem.AssignStereochemistry(mol, force=True, cleanIt=True)
     except Exception as e:
-        return None, None, [], f"Error asignando estereoquímica: {e}"
+        return None, None, [], f"Error assigning stereochemistry: {e}"
 
     elementos_estereo = []
     indices_resaltar_atomos = []
     indices_resaltar_enlaces = []
 
-    # 1. Buscar centros quirales (R/S)
+    # 1. Search for chiral centers (R/S)
     centros_quirales = FindMolChiralCenters(mol, includeUnassigned=True)
     for idx, config in centros_quirales:
         if config in ["R", "S"]:
@@ -121,7 +136,7 @@ def analizar_estereoquimica_mol(nombre_molecula):
             atom = mol.GetAtomWithIdx(idx)
             atom.SetProp('atomNote', f"{idx}")
 
-    # 2. Buscar dobles enlaces con isomería geométrica (Z/E)
+    # 2. Search for double bonds with geometric isomerism (Z/E)
     for bond in mol.GetBonds():
         if bond.GetBondType() == Chem.rdchem.BondType.DOUBLE:
             stereo = bond.GetStereo()
@@ -135,7 +150,7 @@ def analizar_estereoquimica_mol(nombre_molecula):
                 begin_atom.SetProp('atomNote', f"{begin_idx}")
 
     if not elementos_estereo:
-        return None, None, [], "Sin elementos estereogénicos"
+        return None, None, [], "No detectable stereogenic elements"
 
     elementos_estereo.sort(key=lambda x: x[0])
     respuestas_formateadas = [item[1] for item in elementos_estereo]
@@ -172,14 +187,13 @@ def analizar_estereoquimica_mol(nombre_molecula):
     return respuesta_correcta, img_b64, tipo_estereo, None
 
 def generate_chiral_short_answer_xml(questions_list, lang):
-    """Genera el XML para Moodle de tipo 'shortanswer' adaptando el enunciado según el tipo estéreo."""
+    """Generates Moodle XML for short-answer questions adapting the prompt based on stereo type."""
     quiz = ET.Element("quiz")
     
     for item in questions_list:
         name = item["name"]
         correct_ans = item["correct_answer"]
         b64_img = item["image_b64"]
-        # Uso seguro de .get() para evitar KeyError con elementos anteriores en session_state
         tipo_estereo = item.get("tipo_estereo", "chiral")
         
         question = ET.Element("question", type="shortanswer")
@@ -215,7 +229,7 @@ def generate_chiral_short_answer_xml(questions_list, lang):
     return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
 
 def render_nueva_herramienta(texts_main):
-    """Función principal que renderiza el módulo de estereoquímica en Streamlit."""
+    """Main function that renders the stereochemistry module in Streamlit."""
     lang = str_lit.session_state.get("lang", "en")
     t = TEXTS_EQ[lang]
     
@@ -232,8 +246,10 @@ def render_nueva_herramienta(texts_main):
     if "last_eq_preview" not in str_lit.session_state:
         str_lit.session_state.last_eq_preview = None
 
+    # --- TWO-COLUMN LAYOUT ---
     col_input, col_list = str_lit.columns([1.1, 0.9], gap="large")
 
+    # ================= LEFT COLUMN: INPUT (INDIVIDUAL & BULK) =================
     with col_input:
         tab_ind, tab_bulk = str_lit.tabs([t["tab_individual"], t["tab_bulk"]])
 
@@ -244,9 +260,9 @@ def render_nueva_herramienta(texts_main):
                 
                 if submitted:
                     if not c_name.strip():
-                        str_lit.error("Por favor, introduce el nombre de la molécula." if lang == "es" else "Please enter a molecule name.")
+                        str_lit.error(t["error_enter_name"])
                     else:
-                        with str_lit.spinner("Buscando estructura, calculando estereoquímica (R/S y Z/E) y renderizando imagen..."):
+                        with str_lit.spinner("Searching structure, calculating stereochemistry (R/S & Z/E), and rendering image..." if lang=="en" else "Buscando estructura, calculando estereoquímica (R/S y Z/E) y renderizando imagen..."):
                             correct_ans, img_b64, tipo_estereo, err = analizar_estereoquimica_mol(c_name)
                             if err:
                                 str_lit.error(f"Error: {err}")
@@ -264,11 +280,11 @@ def render_nueva_herramienta(texts_main):
                                     "image_b64": img_b64,
                                     "correct_answer": correct_ans
                                 }
-                                str_lit.success(f"{t['success_added']} Respuesta: **{correct_ans}**")
+                                str_lit.success(f"{t['success_added']} Answer: **{correct_ans}**" if lang=="en" else f"{t['success_added']} Respuesta: **{correct_ans}**")
 
             if str_lit.session_state.last_eq_preview:
                 prev = str_lit.session_state.last_eq_preview
-                str_lit.markdown(f"**Última molécula añadida:** `{prev['name']}` (Config: `{prev['correct_answer']}`)")
+                str_lit.markdown(f"**{t['last_added']}:** `{prev['name']}` (Config: `{prev['correct_answer']}`)")
                 if prev["image_b64"]:
                     str_lit.image(f"data:image/png;base64,{prev['image_b64']}", width=250, caption=prev["name"])
 
@@ -286,19 +302,32 @@ def render_nueva_herramienta(texts_main):
                     col_name = 'name' if 'name' in df.columns else ('nombre' if 'nombre' in df.columns else None)
                     
                     if not col_name:
-                        str_lit.error("El archivo debe contener una columna llamada 'name' o 'nombre'.")
+                        str_lit.error(t["error_col_name"])
                     else:
                         success_count = 0
                         fail_count = 0
-                        progress_bar = str_lit.progress(0, text="Procesando lote estereoquímico...")
+                        errores_detalle = []
+                        
+                        progress_bar = str_lit.progress(0, text="Processing batch..." if lang=="en" else "Procesando lote estereoquímico...")
                         total = len(df)
                         
                         for idx, row in df.iterrows():
-                            c_name = str(row[col_name]).strip()
-                            progress_bar.progress((idx + 1) / total, text=f"Analizando: {c_name}")
+                            c_name = str(row[col_name]).strip() if pd.notna(row[col_name]) else ""
+                            progress_bar.progress((idx + 1) / total, text=f"Analyzing: {c_name}")
                             
+                            if not c_name or c_name == "nan":
+                                fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": "N/A", "cause": "Missing molecule name"})
+                                continue
+                                
                             correct_ans, img_b64, tipo_estereo, err = analizar_estereoquimica_mol(c_name)
-                            if correct_ans and not err:
+                            if err:
+                                fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": c_name, "cause": err})
+                            elif not correct_ans:
+                                fail_count += 1
+                                errores_detalle.append({"row": idx + 1, "name": c_name, "cause": "No detectable stereogenic elements"})
+                            else:
                                 str_lit.session_state.eq_questions.append({
                                     "name": c_name,
                                     "correct_answer": correct_ans,
@@ -306,22 +335,26 @@ def render_nueva_herramienta(texts_main):
                                     "tipo_estereo": tipo_estereo
                                 })
                                 success_count += 1
-                            else:
-                                fail_count += 1
                                 
                         progress_bar.empty()
                         str_lit.success(t["bulk_success"].format(success_count, fail_count))
+                        
+                        if errores_detalle:
+                            with str_lit.expander(t["bulk_errors_title"]):
+                                df_err = pd.DataFrame(errores_detalle)
+                                str_lit.dataframe(df_err, use_container_width=True)
+                                
                 except Exception as e:
-                    str_lit.error(f"Error procesando el archivo: {e}")
+                    str_lit.error(f"Error processing file: {e}")
 
-    # ================= COLUMNA DERECHA: LISTADO Y EXPORTACIÓN =================
+    # ================= RIGHT COLUMN: LIST & EXPORT =================
     with col_list:
         str_lit.subheader(t["section_export"])
         
         if str_lit.session_state.eq_questions:
-            str_lit.write(f"Total de preguntas en la lista: **{len(str_lit.session_state.eq_questions)}**")
+            str_lit.write(f"Total questions in list: **{len(str_lit.session_state.eq_questions)}**" if lang=="en" else f"Total de preguntas en la lista: **{len(str_lit.session_state.eq_questions)}**")
             
-            # --- BOTONES PRINCIPALES EN VERTICAL ---
+            # --- VERTICALLY ALIGNED MAIN BUTTONS ---
             xml_data = generate_chiral_short_answer_xml(str_lit.session_state.eq_questions, lang)
             
             str_lit.markdown("""
@@ -355,7 +388,7 @@ def render_nueva_herramienta(texts_main):
             
             str_lit.divider()
                 
-            # Contenedor con scroll para la lista de preguntas
+            # Scrollable container for questions list
             container_list = str_lit.container(height=420)
             with container_list:
                 for i, q in enumerate(str_lit.session_state.eq_questions):
@@ -364,7 +397,7 @@ def render_nueva_herramienta(texts_main):
                         if q['image_b64']:
                             str_lit.image(f"data:image/png;base64,{q['image_b64']}", width=100)
                     with cols_item[1]:
-                        str_lit.markdown(f"**#{i+1}** (`{q['name']}`)<br>Config: **`{q['correct_answer']}`**", unsafe_allow_html=True)
+                        str_lit.markdown(f"**#{i+1}** (`{q['name']}`)<br>{t['config_label']}: **`{q['correct_answer']}`**", unsafe_allow_html=True)
                     with cols_item[2]:
                         if str_lit.button("🗑️", key=f"del_eq_{i}"):
                             str_lit.session_state.eq_questions.pop(i)
