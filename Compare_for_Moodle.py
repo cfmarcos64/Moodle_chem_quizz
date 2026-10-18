@@ -258,8 +258,9 @@ def generar_multichoice_xml(questions_list, lang):
         
         question = ET.Element("question", type="multichoice")
         
+        # Question name (Corregido para evitar la duplicación de etiquetas text)
         q_name = ET.SubElement(question, "name")
-        ET.SubElement(ET.SubElement(q_name, "text"), "text").text = t["question_title"].format(name1, name2)
+        ET.SubElement(q_name, "text").text = t["question_title"].format(name1, name2)
         
         q_text = ET.SubElement(question, "questiontext", format="html")
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="Stereo comparison" /></p>' if b64_img else ""
@@ -275,7 +276,8 @@ def generar_multichoice_xml(questions_list, lang):
         quiz.append(question)
         
     tree = ET.ElementTree(quiz)
-    ET.indent(tree, space="  ")
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space="    ")
     return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
 
 def render_nueva_herramienta(texts_main):
