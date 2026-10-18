@@ -132,9 +132,14 @@ def generar_imagen_limpia_b64(smiles):
     return None
 
 def generar_short_answer_xml(questions_list, lang):
-    """Generates Moodle XML for short-answer questions allowing multiple valid answers."""
+    """Generates a Moodle-compatible XML file for short-answer questions using standard HTML text formatting."""
     t = TEXTS_NOM[lang]
-    quiz = ET.Element("quiz")
+    root = ET.Element("quiz")
+    
+    # Category node to organise the question bank
+    cat_node = ET.SubElement(root, "question", type="category")
+    cat_text = ET.SubElement(ET.SubElement(cat_node, "category"), "text")
+    cat_text.text = "$course$/Nomenclature_" + lang.upper()
     
     for item in questions_list:
         ref_name = item["ref_name"]
@@ -147,7 +152,7 @@ def generar_short_answer_xml(questions_list, lang):
         q_name = ET.SubElement(question, "name")
         ET.SubElement(ET.SubElement(q_name, "text"), "text").text = t["question_title"].format(ref_name)
         
-        # Question text with embedded image
+        # Question text with embedded image using standard HTML text nodes
         q_text = ET.SubElement(question, "questiontext", format="html")
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="{ref_name}" /></p>' if b64_img else ""
         ET.SubElement(q_text, "text").text = f"<p>{t['question_text']}</p>{img_tag}"
@@ -159,11 +164,11 @@ def generar_short_answer_xml(questions_list, lang):
             feedback = ET.SubElement(answer, "feedback", format="html")
             ET.SubElement(feedback, "text").text = "¡Correcto!" if lang == "es" else "Correct!"
             
-        quiz.append(question)
+        root.append(question)
         
-    tree = ET.ElementTree(quiz)
-    ET.indent(tree, space="  ")
-    return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
+    buffer = io.BytesIO()
+    buffer.write(ET.tostring(root, encoding="utf-8", xml_declaration=True))
+    return buffer.getvalue()
 
 def render_nueva_herramienta(texts_main):
     """Main function that renders the nomenclature module in Streamlit."""
