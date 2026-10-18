@@ -23,8 +23,12 @@ All tools share a unified design philosophy: the educator provides compound name
 3. **Stereochemistry Determination (`Stereochemistry_for_Moodle.py`)**  
    * Automatically detects chiral centres ($R/S$) and geometric double bonds ($Z/E$) using RDKit.
    * Dynamically adapts question prompts according to the detected stereogenic element and exports to Moodle short answer format.
-
-4. **Stereoisomer Comparison & Analysis (`Compare_for_Moodle.py`)**  
+  
+4. **Drag & Drop Stereochemistry (`DragDropStereo_for_Moodle.py`)
+   * Automatically detects chiral centres ($R/S$) and geometric double bonds ($Z/E$) using RDKit.
+   * Allows dropping $R/S$ and $Z/E$ labels on stereogenic elements.
+  
+5. **Stereoisomer Comparison & Analysis (`Compare_for_Moodle.py`)**  
    * Evaluates the stereochemical relationship between a base molecule and either automatically enumerated stereoisomers or a second manually entered compound.
    * Rigorously classifies pairs into four distinct categories: Enantiomers, Diastereomers, Identical compounds (including meso forms), and Different non-stereoisomeric compounds (exporting as Moodle multiple choice questions).
 
