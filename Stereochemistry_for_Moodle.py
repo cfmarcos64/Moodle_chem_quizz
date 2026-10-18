@@ -30,7 +30,7 @@ except ImportError:
 TEXTS_EQ = {
     "es": {
         "title": "Generador de Preguntas de Estereoquímica 🧬",
-        "desc": "Detecta automáticamente centros quirales (R/S) y dobles enlaces (Z/E) con RDKit, indica sus índices en la molécula y genera preguntas de respuesta corta para Moodle.",
+        "desc": "Detecta automáticamente centros quirales (R/S) y dobles enlaces (Z/E), indica sus índices en la molécula y genera preguntas de respuesta corta para Moodle.",
         "tab_individual": "Entrada Individual",
         "tab_bulk": "Carga Masiva",
         "section_export": "Listado y Exportación de Preguntas",
@@ -59,7 +59,7 @@ TEXTS_EQ = {
     },
     "en": {
         "title": "Stereochemistry Question Generator 🧬",
-        "desc": "Automatically detects chiral centers (R/S) and double bonds (Z/E) with RDKit, indicates their indices on the molecule, and generates short-answer Moodle questions.",
+        "desc": "Automatically detects chiral centers (R/S) and double bonds (Z/E), indicates their indices on the molecule, and generates short-answer Moodle questions.",
         "tab_individual": "Individual Entry",
         "tab_bulk": "Bulk Upload",
         "section_export": "Questions List & Export",
