@@ -135,12 +135,7 @@ def generar_short_answer_xml(questions_list, lang):
     """Generates a Moodle-compatible XML file for short-answer questions using standard HTML text formatting."""
     t = TEXTS_NOM[lang]
     root = ET.Element("quiz")
-    
-    # Category node to organise the question bank
-    cat_node = ET.SubElement(root, "question", type="category")
-    cat_text = ET.SubElement(ET.SubElement(cat_node, "category"), "text")
-    cat_text.text = "$course$/Nomenclature_" + lang.upper()
-    
+     
     for item in questions_list:
         ref_name = item["ref_name"]
         names_validos = item["valid_names"]
