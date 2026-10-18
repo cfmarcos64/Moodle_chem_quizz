@@ -40,9 +40,9 @@ TEXTS_EQ = {
         "bulk_note": "El archivo debe contener al menos una columna llamada **'name'** o **'nombre'** con los nombres en inglés.",
         "start_bulk": "Procesar Carga Masiva",
         "question_title": "Estereoquímica de {}",
-        "prompt_chiral": "Indica la configuración absoluta de los centros quirales señalados (formato: índiceR/S, ej: 1S o 2R, 4S):",
-        "prompt_geometric": "Indica la configuración geométrica de los dobles enlaces señalados (formato: índiceZ/E, ej: 2Z o 3E):",
-        "prompt_both": "Indica la configuración estereoquímica absoluta y geométrica de los elementos señalados (ej: 2R, 4E):",
+        "prompt_chiral": "Indica la configuración absoluta de los centros quirales señalados (formato: índice R/S en orden creciente, ej: 1S o 2R, 4S):",
+        "prompt_geometric": "Indica la configuración geométrica de los dobles enlaces señalados (formato: índice Z/E en orden creciente, ej: 2Z o 1Z, 3E):",
+        "prompt_both": "Indica la configuración estereoquímica absoluta y geométrica de los elementos señalados (en orden creciente de los índices, ej: 1Z, 3R, 4E):",
         "export_xml": "Descargar XML Moodle (Respuesta Corta)",
         "clear_all": "Borrar Toda la Lista",
         "error_rdkit": "RDKit no está disponible en este entorno para realizar los cálculos estereoquímicos.",
@@ -69,9 +69,9 @@ TEXTS_EQ = {
         "bulk_note": "The file must contain a column named **'name'** or **'nombre'** with molecule names in English.",
         "start_bulk": "Process Bulk Upload",
         "question_title": "Stereochemistry of {}",
-        "prompt_chiral": "Indicate the absolute configuration of the specified chiral centers (format: indexR/S, e.g., 1S or 2R, 4S):",
-        "prompt_geometric": "Indicate the geometric configuration of the specified double bonds (format: indexZ/E, e.g., 2Z or 3E):",
-        "prompt_both": "Indicate the absolute and geometric stereochemical configuration of the specified elements (e.g., 2R, 4E):",
+        "prompt_chiral": "Indicate the absolute configuration of the specified chiral centers (format: index R/S in increasing order, e.g., 1S or 2R, 4S):",
+        "prompt_geometric": "Indicate the geometric configuration of the specified double bonds (format: index Z/E in increasing order, e.g., 2Z or 1Z, 3E):",
+        "prompt_both": "Indicate the absolute and geometric stereochemical configuration of the specified elements (in index increasing order, e.g., 1Z, 3R, 4E):",
         "export_xml": "Download Moodle XML (Short Answer)",
         "clear_all": "Clear All Questions",
         "error_rdkit": "RDKit is not available in this environment to perform stereochemical calculations.",
@@ -104,8 +104,9 @@ def buscar_smiles_nci(nombre_molecula):
 
 def analizar_estereoquimica_mol(nombre_molecula):
     """
-    Loads the molecule, calculates CIP stereochemistry (chiral and Z/E double bonds),
-    assigns labels/notes to corresponding atoms and bonds, and generates the image.
+    Loads the molecule, calculates CIP stereochemistry (chiral and Z/E double bonds)
+    using natural 1-based indexing from the SMILES, assigns notes to atoms/bonds, 
+    and generates the image.
     """
     if not RDKIT_AVAILABLE:
         return None, None, [], "RDKit not available"
@@ -127,14 +128,15 @@ def analizar_estereoquimica_mol(nombre_molecula):
     indices_resaltar_atomos = []
     indices_resaltar_enlaces = []
 
-    # 1. Search for chiral centers (R/S)
+    # 1. Search for chiral centers (R/S) using natural 1-based index
     centros_quirales = FindMolChiralCenters(mol, includeUnassigned=True)
     for idx, config in centros_quirales:
         if config in ["R", "S"]:
-            elementos_estereo.append((idx, f"{idx}{config}", "atom"))
+            iupac_idx = idx + 1
+            elementos_estereo.append((idx, f"{iupac_idx}{config}", "atom"))
             indices_resaltar_atomos.append(idx)
             atom = mol.GetAtomWithIdx(idx)
-            atom.SetProp('atomNote', f"{idx}")
+            atom.SetProp('atomNote', f"{iupac_idx}")
 
     # 2. Search for double bonds with geometric isomerism (Z/E)
     for bond in mol.GetBonds():
@@ -143,18 +145,23 @@ def analizar_estereoquimica_mol(nombre_molecula):
             if stereo in [Chem.rdchem.BondStereo.STEREOZ, Chem.rdchem.BondStereo.STEREOE]:
                 label_ze = "Z" if stereo == Chem.rdchem.BondStereo.STEREOZ else "E"
                 begin_idx = bond.GetBeginAtomIdx()
+                iupac_idx = begin_idx + 1
                 b_idx = bond.GetIdx()
-                elementos_estereo.append((begin_idx, f"{begin_idx}{label_ze}", "bond"))
+                elementos_estereo.append((begin_idx, f"{iupac_idx}{label_ze}", "bond"))
                 indices_resaltar_enlaces.append(b_idx)
                 begin_atom = mol.GetAtomWithIdx(begin_idx)
-                begin_atom.SetProp('atomNote', f"{begin_idx}")
+                begin_atom.SetProp('atomNote', f"{iupac_idx}")
 
     if not elementos_estereo:
         return None, None, [], "No detectable stereogenic elements"
 
     elementos_estereo.sort(key=lambda x: x[0])
     respuestas_formateadas = [item[1] for item in elementos_estereo]
-    respuesta_correcta = ", ".join(respuestas_formateadas)
+    
+    # Generamos variantes para aceptar con espacio y sin espacio
+    ans_with_space = ", ".join(respuestas_formateadas)
+    ans_without_space = ",".join(respuestas_formateadas)
+    correct_answers_list = list(dict.fromkeys([ans_with_space, ans_without_space]))
 
     has_chiral = any(t == "atom" for _, _, t in elementos_estereo)
     has_geometric = any(t == "bond" for _, _, t in elementos_estereo)
@@ -184,7 +191,7 @@ def analizar_estereoquimica_mol(nombre_molecula):
     except Exception:
         img_b64 = None
 
-    return respuesta_correcta, img_b64, tipo_estereo, None
+    return correct_answers_list, img_b64, tipo_estereo, None
 
 def generate_chiral_short_answer_xml(questions_list, lang):
     """Generates Moodle XML for short-answer questions adapting the prompt based on stereo type."""
@@ -198,10 +205,12 @@ def generate_chiral_short_answer_xml(questions_list, lang):
         
         question = ET.Element("question", type="shortanswer")
         
+        # Question name
         q_name = ET.SubElement(question, "name")
         q_text_name = ET.SubElement(q_name, "text")
         q_text_name.text = TEXTS_EQ[lang]["question_title"].format(name)
         
+        # Select prompt based on stereo type
         if tipo_estereo == "geometric":
             base_prompt = TEXTS_EQ[lang]["prompt_geometric"]
         elif tipo_estereo == "both":
@@ -209,24 +218,33 @@ def generate_chiral_short_answer_xml(questions_list, lang):
         else:
             base_prompt = TEXTS_EQ[lang]["prompt_chiral"]
         
+        # Question text with embedded image
         q_text = ET.SubElement(question, "questiontext", format="html")
         q_text_content = ET.SubElement(q_text, "text")
         
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="{name}" /></p>' if b64_img else ""
-        q_text_content.text = f"<p>{base_prompt}</p> {img_tag}"
+        q_text_content.text = f"<p>{base_prompt}</p>{img_tag}"
         
-        answer = ET.SubElement(question, "answer", fraction="100", format="moodle_auto_format")
-        ans_text = ET.SubElement(answer, "text")
-        ans_text.text = correct_ans
+        # Handle correct answers (supports both single string or list of valid answers)
+        answers_list = correct_ans if isinstance(correct_ans, list) else [correct_ans]
         
-        feedback = ET.SubElement(answer, "feedback", format="html")
-        ET.SubElement(feedback, "text").text = "¡Correcto!" if lang == "es" else "Correct!"
+        for ans_val in answers_list:
+            answer = ET.SubElement(question, "answer", fraction="100", format="moodle_auto_format")
+            ans_text = ET.SubElement(answer, "text")
+            ans_text.text = ans_val
+            
+            feedback = ET.SubElement(answer, "feedback", format="html")
+            ET.SubElement(feedback, "text").text = "¡Correcto!" if lang == "es" else "Correct!"
         
         quiz.append(question)
         
     tree = ET.ElementTree(quiz)
-    ET.indent(tree, space="  ")
-    return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space="    ")
+        
+    buffer = io.BytesIO()
+    buffer.write(ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True))
+    return buffer.getvalue()
 
 def render_nueva_herramienta(texts_main):
     """Main function that renders the stereochemistry module in Streamlit."""
@@ -263,24 +281,25 @@ def render_nueva_herramienta(texts_main):
                         str_lit.error(t["error_enter_name"])
                     else:
                         with str_lit.spinner("Searching structure, calculating stereochemistry (R/S & Z/E), and rendering image..." if lang=="en" else "Buscando estructura, calculando estereoquímica (R/S y Z/E) y renderizando imagen..."):
-                            correct_ans, img_b64, tipo_estereo, err = analizar_estereoquimica_mol(c_name)
+                            correct_ans_list, img_b64, tipo_estereo, err = analizar_estereoquimica_mol(c_name)
                             if err:
                                 str_lit.error(f"Error: {err}")
-                            elif not correct_ans:
+                            elif not correct_ans_list:
                                 str_lit.warning(t["error_chiral"])
                             else:
+                                primary_ans = correct_ans_list[0]
                                 str_lit.session_state.eq_questions.append({
                                     "name": c_name.strip(),
-                                    "correct_answer": correct_ans,
+                                    "correct_answer": correct_ans_list,
                                     "image_b64": img_b64,
                                     "tipo_estereo": tipo_estereo
                                 })
                                 str_lit.session_state.last_eq_preview = {
                                     "name": c_name.strip(),
                                     "image_b64": img_b64,
-                                    "correct_answer": correct_ans
+                                    "correct_answer": primary_ans
                                 }
-                                str_lit.success(f"{t['success_added']} Answer: **{correct_ans}**" if lang=="en" else f"{t['success_added']} Respuesta: **{correct_ans}**")
+                                str_lit.success(f"{t['success_added']} Answer: **{primary_ans}**" if lang=="en" else f"{t['success_added']} Respuesta: **{primary_ans}**")
 
             if str_lit.session_state.last_eq_preview:
                 prev = str_lit.session_state.last_eq_preview
@@ -320,17 +339,17 @@ def render_nueva_herramienta(texts_main):
                                 errores_detalle.append({"row": idx + 1, "name": "N/A", "cause": "Missing molecule name"})
                                 continue
                                 
-                            correct_ans, img_b64, tipo_estereo, err = analizar_estereoquimica_mol(c_name)
+                            correct_ans_list, img_b64, tipo_estereo, err = analizar_estereoquimica_mol(c_name)
                             if err:
                                 fail_count += 1
                                 errores_detalle.append({"row": idx + 1, "name": c_name, "cause": err})
-                            elif not correct_ans:
+                            elif not correct_ans_list:
                                 fail_count += 1
                                 errores_detalle.append({"row": idx + 1, "name": c_name, "cause": "No detectable stereogenic elements"})
                             else:
                                 str_lit.session_state.eq_questions.append({
                                     "name": c_name,
-                                    "correct_answer": correct_ans,
+                                    "correct_answer": correct_ans_list,
                                     "image_b64": img_b64,
                                     "tipo_estereo": tipo_estereo
                                 })
@@ -397,9 +416,10 @@ def render_nueva_herramienta(texts_main):
                         if q['image_b64']:
                             str_lit.image(f"data:image/png;base64,{q['image_b64']}", width=100)
                     with cols_item[1]:
-                        str_lit.markdown(f"**#{i+1}** (`{q['name']}`)<br>{t['config_label']}: **`{q['correct_answer']}`**", unsafe_allow_html=True)
+                        display_ans = q['correct_answer'][0] if isinstance(q['correct_answer'], list) else q['correct_answer']
+                        str_lit.markdown(f"**#{i+1}** (`{q['name']}`)<br>{t['config_label']}: **`{display_ans}`**", unsafe_allow_html=True)
                     with cols_item[2]:
-                        if str_lit.button("🗑️", key=f"del_eq_{i}"):
+                        if str_lit.button("🗑️", key=f"del_eq_{i} psic"):
                             str_lit.session_state.eq_questions.pop(i)
                             str_lit.rerun()
                     str_lit.divider()
