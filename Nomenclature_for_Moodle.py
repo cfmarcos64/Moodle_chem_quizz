@@ -148,9 +148,9 @@ def generar_short_answer_xml(questions_list, lang):
         
         question = ET.Element("question", type="shortanswer")
         
-        # Question name
+        # Question name (Corregido para evitar la duplicación)
         q_name = ET.SubElement(question, "name")
-        ET.SubElement(ET.SubElement(q_name, "text"), "text").text = t["question_title"].format(ref_name)
+        ET.SubElement(q_name, "text").text = t["question_title"].format(ref_name)
         
         # Question text with embedded image using standard HTML text nodes
         q_text = ET.SubElement(question, "questiontext", format="html")
