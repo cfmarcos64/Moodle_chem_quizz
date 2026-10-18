@@ -213,7 +213,7 @@ def generate_chiral_short_answer_xml(questions_list, lang):
         q_text_content = ET.SubElement(q_text, "text")
         
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="{name}" /></p>' if b64_img else ""
-        q_text_content.text = f"<![CDATA[<p>{base_prompt}</p> {img_tag}]]>"
+        q_text_content.text = f"<p>{base_prompt}</p> {img_tag}"
         
         answer = ET.SubElement(question, "answer", fraction="100", format="moodle_auto_format")
         ans_text = ET.SubElement(answer, "text")
