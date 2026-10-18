@@ -26,122 +26,145 @@ try:
 except ImportError:
     RDKIT_AVAILABLE = False
 
-# Master dictionary updated with IUPAC priorities and Alkane at the end
-FUNCTIONAL_GROUPS_MASTER_ULTIMATE = {
+# Master dictionary with valid SMARTS strings and multiple accepted answers for ES and EN
+FUNCTIONAL_GROUPS_MASTER = {
     'Ácido carboxílico': {
         'smarts': '[$([CX3](=O)[OX2H1]),$([CX3](=O)[O-])]', 
         'priority': 1,
-        'en': 'Carboxylic acid'
+        'es': ['Ácido carboxílico'],
+        'en': ['Carboxylic acid']
     },
     'Peroxiácido (Ácido peroxicarboxílico)': {
         'smarts': '[CX3](=O)[OX2][OX2H]', 
         'priority': 2,
-        'en': 'Peroxyacid (Peroxycarboxylic acid)'
+        'es': ['Peroxiácido (Ácido peroxicarboxílico)', 'Peroxiácido'],
+        'en': ['Peroxyacid (Peroxycarboxylic acid)', 'Peroxyacid']
     },
     'Anhídrido de ácido': {
         'smarts': '[CX3](=O)[OX2][CX3](=O)', 
         'priority': 3,
-        'en': 'Acid anhydride'
+        'es': ['Anhídrido de ácido', 'Anhídrido'],
+        'en': ['Acid anhydride', 'Anhydride']
     },
     'Éster': {
         'smarts': '[#6][CX3](=O)[OX2][#6]', 
         'priority': 4,
-        'en': 'Ester'
+        'es': ['Éster'],
+        'en': ['Ester']
     },
     'Haluro de ácido (Acilo)': {
         'smarts': '[CX3](=O)[F,Cl,Br,I]', 
         'priority': 5,
-        'en': 'Acyl halide'
+        'es': ['Haluro de ácido (Acilo)', 'Haluro de acilo', 'Haluro de ácido'],
+        'en': ['Acyl halide', 'Acid halide']
     },
     'Amida': {
         'smarts': '[CX3](=O)[NX3]', 
         'priority': 6,
-        'en': 'Amide'
+        'es': ['Amida'],
+        'en': ['Amide']
     },
     'Nitrilo': {
         'smarts': '[CX2,CX3]#[NX1]', 
         'priority': 7,
-        'en': 'Nitrile'
+        'es': ['Nitrilo', 'Cianuro'],
+        'en': ['Nitrile', 'Cyanide']
     },
     'Aldehído': {
         'smarts': '[CX3H1](=O)[#6]', 
         'priority': 8,
-        'en': 'Aldehyde'
+        'es': ['Aldehído'],
+        'en': ['Aldehyde']
     },
     'Cetona': {
         'smarts': '[#6][CX3](=O)[#6]', 
         'priority': 9,
-        'en': 'Ketone'
+        'es': ['Cetona'],
+        'en': ['Ketone']
     },
     'Imina / Base de Schiff': {
         'smarts': '[CX3](=[NX2][#6])[#6,H]', 
         'priority': 10,
-        'en': 'Imine / Schiff base'
+        'es': ['Imina / Base de Schiff', 'Imina'],
+        'en': ['Imine / Schiff base', 'Imine']
     },
     'Hemiacetal / Hemiketal': {
         'smarts': '[CX4]([OX2H])([OX2][#6])', 
         'priority': 11,
-        'en': 'Hemiacetal / Hemiketal'
+        'es': ['Hemiacetal / Hemiketal'],
+        'en': ['Hemiacetal / Hemiketal']
     },
     'Alcohol': {
         'smarts': '[#6][OX2H]', 
         'priority': 12,
-        'en': 'Alcohol'
+        'es': ['Alcohol', 'Grupo hidroxilo', 'Hidroxilo'],
+        'en': ['Alcohol', 'Hydroxyl']
     },
     'Amina': {
         'smarts': '[NX3;H2,H1,H0;!$(NC=O)]', 
         'priority': 13,
-        'en': 'Amine'
+        'es': ['Amina'],
+        'en': ['Amine']
     },
     'Acetal / Ketal': {
         'smarts': '[CX4]([OX2][#6])([OX2][#6])', 
         'priority': 14,
-        'en': 'Acetal / Ketal'
+        'es': ['Acetal / Ketal'],
+        'en': ['Acetal / Ketal']
     },
     'Epóxido (Oxirano)': {
         'smarts': '[CX4]1[OX2][CX4]1', 
         'priority': 15,
-        'en': 'Epoxide (Oxirane)'
+        'es': ['Epóxido (Oxirano)', 'Epóxido', 'Oxirano'],
+        'en': ['Epoxide (Oxirane)', 'Epoxide', 'Oxirane']
     },
     'Peróxido': {
         'smarts': '[OX2][OX2]', 
         'priority': 16,
-        'en': 'Peroxide'
+        'es': ['Peróxido'],
+        'en': ['Peroxide']
     },
     'Éter': {
         'smarts': '[#6][OX2][#6]', 
         'priority': 17,
-        'en': 'Ether'
+        'es': ['Éter'],
+        'en': ['Ether']
     },
     'Grupo Nitro': {
         'smarts': '[$([NX3](=O)=O),$([NX3+]([O-])=O)]', 
         'priority': 18,
-        'en': 'Nitro group'
+        'es': ['Grupo Nitro', 'Nitro'],
+        'en': ['Nitro group', 'Nitro']
     },
     'Haluro de alquilo': {
         'smarts': '[CX4][F,Cl,Br,I]', 
         'priority': 19,
-        'en': 'Alkyl halide'
+        'es': ['Haluro de alquilo', 'Haloalcano'],
+        'en': ['Alkyl halide', 'Haloalkane']
     },
     'Alquino (Triple enlace)': {
         'smarts': '[CX2]#[CX2]', 
         'priority': 20,
-        'en': 'Alkyne (Triple bond)'
+        'es': ['Alquino (Triple enlace)', 'Alquino', 'Triple enlace'],
+        'en': ['Alkyne (Triple bond)', 'Alkyne', 'Triple bond']
     },
     'Alqueno (Doble enlace)': {
         'smarts': '[CX3]=[CX3]', 
         'priority': 21,
-        'en': 'Alkene (Double bond)'
+        'es': ['Alqueno (Doble enlace)', 'Alqueno', 'Doble enlace'],
+        'en': ['Alkene (Double bond)', 'Alkene', 'Double bond']
     },
     'Anillo aromático (Bencénico)': {
         'smarts': 'c1ccccc1', 
         'priority': 22,
-        'en': 'Aromatic ring (Benzene)'
+        'es': ['Anillo aromático (Bencénico)', 'Benceno', 'Anillo aromático', 'Aromático'],
+        'en': ['Aromatic ring (Benzene)', 'Benzene', 'Aromatic ring']
     },
     'Alcano': {
         'smarts': '[CX4]', 
         'priority': 23,
-        'en': 'Alkane'
+        'es': ['Alcano'],
+        'en': ['Alkane']
     }
 }
 
@@ -156,7 +179,7 @@ TEXTS_DG = {
         "compound_name": "Nombre de la molécula (en inglés, ej: hexane, acetic acid)",
         "detect_btn": "Analizar y Detectar Grupo",
         "add_question": "Añadir a la Lista de Preguntas",
-        "fg_label": "Grupo funcional (editable)",
+        "fg_label": "Grupo funcional (editable, separa sinónimos por comas si procede)",
         "bulk_uploader": "Sube un archivo Excel (.xlsx) o CSV",
         "bulk_note": "El archivo puede contener la columna **'name'** y opcionalmente **'functional_group'**. Si está vacía, se detectará automáticamente.",
         "start_bulk": "Procesar Carga Masiva",
@@ -218,20 +241,21 @@ TEXTS_DG = {
 def detectar_grupo_funcional(mol, lang="es"):
     """
     Detects the main functional group using the master dictionary sorted by IUPAC priority.
+    Returns the full list of accepted answers/synonyms for the active language.
     If no specific group matches, defaults to Alkane.
     """
     if not mol:
-        return None
+        return ['Alcano'] if lang == 'es' else ['Alkane']
 
-    grupos_ordenados = sorted(FUNCTIONAL_GROUPS_MASTER_ULTIMATE.items(), key=lambda x: x[1]['priority'])
+    grupos_ordenados = sorted(FUNCTIONAL_GROUPS_MASTER.items(), key=lambda x: x[1]['priority'])
 
     for nombre_es, data in grupos_ordenados:
         patron = Chem.MolFromSmarts(data['smarts'])
         if patron and mol.HasSubstructMatch(patron):
-            return data['en'] if lang == 'en' else nombre_es
+            return data['es'] if lang == 'es' else data['en']
 
     # Fallback to Alkane
-    return 'Alkane' if lang == 'en' else 'Alcano'
+    return ['Alcano'] if lang == 'es' else ['Alkane']
 
 def name_to_smiles_simple(compound_name):
     """Searches for a molecule's SMILES using the NCI CIR API."""
@@ -288,17 +312,22 @@ def generate_short_answer_xml(questions_list, lang):
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="{name}" /></p>' if b64_img else ""
         q_text_content.text = f"<p>{base_prompt}</p>{img_tag}"
         
-        answer = ET.SubElement(question, "answer", fraction="100", format="moodle_auto_format")
-        ans_text = ET.SubElement(answer, "text")
-        ans_text.text = fg
+        # Handle functional groups (supports both single string or list of valid answers)
+        answers_list = fg if isinstance(fg, list) else [fg]
         
-        feedback = ET.SubElement(answer, "feedback", format="html")
-        ET.SubElement(feedback, "text").text = "¡Correcto!" if lang == "es" else "Correct!"
+        for ans_val in answers_list:
+            answer = ET.SubElement(question, "answer", fraction="100", format="moodle_auto_format")
+            ans_text = ET.SubElement(answer, "text")
+            ans_text.text = ans_val.strip()
+            
+            feedback = ET.SubElement(answer, "feedback", format="html")
+            ET.SubElement(feedback, "text").text = "¡Correcto!" if lang == "es" else "Correct!"
         
         quiz.append(question)
         
     tree = ET.ElementTree(quiz)
-    ET.indent(tree, space="  ")
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space="    ")
     return ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
 
 def render_nueva_herramienta(texts_main):
@@ -346,14 +375,12 @@ def render_nueva_herramienta(texts_main):
                                 st.error(t["error_smiles"].format(c_name))
                                 st.session_state.temp_fg_data = None
                             else:
-                                detected_fg = detectar_grupo_funcional(mol, lang)
-                                if not detected_fg:
-                                    detected_fg = 'Alkane' if lang == 'en' else 'Alcano'
+                                detected_fg_list = detectar_grupo_funcional(mol, lang)
                                 
                                 img_b64 = smiles_to_png_base64(mol)
                                 st.session_state.temp_fg_data = {
                                     "name": c_name.strip(),
-                                    "functional_group": detected_fg,
+                                    "functional_group": detected_fg_list, # Es una lista de sinónimos
                                     "smiles": smiles,
                                     "image_b64": img_b64
                                 }
@@ -367,26 +394,31 @@ def render_nueva_herramienta(texts_main):
                     st.image(f"data:image/png;base64,{data['image_b64']}", width=250, caption=data["name"])
 
                 with st.form("form_individual_dg_confirm"):
-                    edited_fg = st.text_input(t["fg_label"], value=data["functional_group"])
+                    # Mostramos los sinónimos unidos por coma en el input editable por comodidad
+                    current_fg_str = ", ".join(data["functional_group"]) if isinstance(data["functional_group"], list) else data["functional_group"]
+                    edited_fg = st.text_input(t["fg_label"], value=current_fg_str)
                     submitted_add = st.form_submit_button(t["add_question"], type="primary", icon=":material/add_task:")
                     
                     if submitted_add:
                         if not edited_fg.strip():
                             st.error(t["error_fg_empty"])
                         else:
+                            # Convertimos lo introducido de nuevo en lista separando por comas
+                            final_fg_list = [x.strip() for x in edited_fg.split(",") if x.strip()]
+                            
                             st.session_state.dg_questions.append({
                                 "name": data["name"],
-                                "functional_group": edited_fg.strip(),
+                                "functional_group": final_fg_list,
                                 "smiles": data["smiles"],
                                 "image_b64": data["image_b64"]
                             })
                             st.session_state.last_fg_preview = {
                                 "name": data["name"],
-                                "functional_group": edited_fg.strip(),
+                                "functional_group": " / ".join(final_fg_list),
                                 "image_b64": data["image_b64"]
                             }
                             st.session_state.temp_fg_data = None
-                            st.success(t["success_added"].format(edited_fg.strip()))
+                            st.success(t["success_added"].format(", ".join(final_fg_list)))
                             st.rerun()
 
             if st.session_state.last_fg_preview:
@@ -421,9 +453,10 @@ def render_nueva_herramienta(texts_main):
                             c_name = str(row[col_name]).strip()
                             progress_bar.progress((idx + 1) / total, text=f"Processing: {c_name}")
                             
-                            custom_fg = None
+                            custom_fg_list = None
                             if col_fg and pd.notna(row[col_fg]) and str(row[col_fg]).strip():
-                                custom_fg = str(row[col_fg]).strip()
+                                raw_custom = str(row[col_fg]).strip()
+                                custom_fg_list = [x.strip() for x in raw_custom.split(",") if x.strip()]
                             
                             smiles, mol = name_to_smiles_simple(c_name)
                             if not smiles or not mol:
@@ -431,8 +464,8 @@ def render_nueva_herramienta(texts_main):
                                 errores_detalle.append({"row": idx + 1, "name": c_name, "cause": "SMILES not found in NCI CIR"})
                                 continue
                                 
-                            if custom_fg:
-                                f_group = custom_fg
+                            if custom_fg_list:
+                                f_group = custom_fg_list
                             else:
                                 f_group = detectar_grupo_funcional(mol, lang)
                                 
@@ -505,7 +538,8 @@ def render_nueva_herramienta(texts_main):
                         if q['image_b64']:
                             st.image(f"data:image/png;base64,{q['image_b64']}", width=100)
                     with cols_item[1]:
-                        st.markdown(f"**#{i+1}** (`{q['name']}`)<br>{t['group_label']}: **{q['functional_group']}**", unsafe_allow_html=True)
+                        fg_display = " / ".join(q['functional_group']) if isinstance(q['functional_group'], list) else q['functional_group']
+                        st.markdown(f"**#{i+1}** (`{q['name']}`)<br>{t['group_label']}: **{fg_display}**", unsafe_allow_html=True)
                     with cols_item[2]:
                         if st.button("🗑️", key=f"del_dg_{i}"):
                             st.session_state.dg_questions.pop(i)
