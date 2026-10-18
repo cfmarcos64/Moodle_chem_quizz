@@ -21,6 +21,7 @@ try:
     from FG_for_Moodle import render_nueva_herramienta as render_fg_app
     from Stereochemistry_for_Moodle import render_nueva_herramienta as render_stereo_app
     from Compare_for_Moodle import render_nueva_herramienta as render_compare_app
+    from DragDrop_Stereo_for_Moodle import render_nueva_herramienta as render_dragdrop_stereo_app
 except ImportError as e:
     st.error(f"Error cargando módulos de la suite: {e}")
 
@@ -43,6 +44,7 @@ ui_texts = {
             "Nomenclatura Sistemática", 
             "Grupos Funcionales", 
             "Determinación de Estereoquímica", 
+            "Estereoquímica Interactiva (Drag & Drop)",
             "Comparación de Moléculas"
         ]
     },
@@ -53,6 +55,7 @@ ui_texts = {
             "Systematic Nomenclature", 
             "Functional Groups", 
             "Stereochemistry", 
+            "Interactive Stereochemistry (Drag & Drop)",
             "Molecule Comparison"
         ]
     }
@@ -116,8 +119,10 @@ tool_colors = {
     "Nomenclature": "#e3f2fd",   
     "Grupos": "#f1f8e9",         # Light green
     "Functional": "#f1f8e9",     
-    "Determinación": "#fff3e0",# Light orange
+    "Determinación": "#fff3e0",  # Light orange
     "Stereochemistry": "#fff3e0",  
+    "Interactiva": "#ede7f6",    # Light purple / lavender for Drag & Drop
+    "Interactive": "#ede7f6",    
     "Comparación": "#fce4ec",    # Light pink
     "Comparison": "#fce4ec"      
 }   
@@ -152,4 +157,6 @@ elif opcion == opciones_en[1] or opcion == opciones_es[1]:
 elif opcion == opciones_en[2] or opcion == opciones_es[2]:
     render_stereo_app(ui_texts)
 elif opcion == opciones_en[3] or opcion == opciones_es[3]:
+    render_dragdrop_stereo_app(ui_texts)
+elif opcion == opciones_en[4] or opcion == opciones_es[4]:
     render_compare_app(ui_texts)
