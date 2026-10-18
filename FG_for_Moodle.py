@@ -172,7 +172,7 @@ FUNCTIONAL_GROUPS_MASTER = {
 TEXTS_DG = {
     "es": {
         "title": "Determinación Automática de Grupo Funcional 🧪",
-        "desc": "Introduce una molécula y RDKit detectará automáticamente su grupo funcional (incluyendo alcanos). Si lo deseas, puedes modificarlo antes de generar la pregunta.",
+        "desc": "Introduce una molécula y la app detectará automáticamente su grupo funcional. Si lo deseas, puedes modificarlo antes de generar la pregunta.",
         "tab_individual": "Entrada Individual",
         "tab_bulk": "Carga Masiva",
         "section_export": "Listado y Exportación de Preguntas",
@@ -205,7 +205,7 @@ TEXTS_DG = {
     },
     "en": {
         "title": "Automatic Functional Group Determination 🧪",
-        "desc": "Enter a molecule and RDKit will automatically detect its functional group (including alkanes). You can edit it before generating the question.",
+        "desc": "Enter a molecule and the app will automatically detect its functional group. You can edit it before generating the question.",
         "tab_individual": "Individual Entry",
         "tab_bulk": "Bulk Upload",
         "section_export": "Questions List & Export",
