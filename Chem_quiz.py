@@ -55,7 +55,7 @@ ui_texts = {
             "Systematic Nomenclature", 
             "Functional Groups", 
             "Stereochemistry", 
-            "Interactive Stereochemistry (Drag & Drop)",
+            "Interactive Stereochem. (Drag & Drop)",
             "Molecule Comparison"
         ]
     }
