@@ -150,7 +150,7 @@ def generar_short_answer_xml(questions_list, lang):
         # Question text with embedded image
         q_text = ET.SubElement(question, "questiontext", format="html")
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="{ref_name}" /></p>' if b64_img else ""
-        ET.SubElement(q_text, "text").text = f"<![CDATA[<p>{t['question_text']}</p>{img_tag}]]>"
+        ET.SubElement(q_text, "text").text = f"<p>{t['question_text']}</p>{img_tag}"
         
         # Configure valid answers (all with 100% score)
         for n_val in names_validos:
