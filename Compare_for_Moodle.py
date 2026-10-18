@@ -263,7 +263,7 @@ def generar_multichoice_xml(questions_list, lang):
         
         q_text = ET.SubElement(question, "questiontext", format="html")
         img_tag = f'<p><img src="data:image/png;base64,{b64_img}" alt="Stereo comparison" /></p>' if b64_img else ""
-        ET.SubElement(q_text, "text").text = f"<![CDATA[<p>{t['question_text']}</p>{img_tag}]]>"
+        ET.SubElement(q_text, "text").text = f"<p>{t['question_text']}</p>{img_tag}"
         
         for key, text_val in opciones_map.items():
             fraction = "100" if key == correct_rel else "0"
