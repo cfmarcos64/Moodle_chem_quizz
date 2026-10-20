@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 16 09:05:18 2026
+Created on Fri Oct 20 09:05:18 2026
 
 @author: Carlos F. Marcos
 """
@@ -22,6 +22,7 @@ try:
     from Stereochemistry_for_Moodle import render_nueva_herramienta as render_stereo_app
     from Compare_for_Moodle import render_nueva_herramienta as render_compare_app
     from DragDrop_Stereo_for_Moodle import render_nueva_herramienta as render_dragdrop_stereo_app
+    from Editor_for_Moodle import render_nueva_herramienta as render_editor_app
 except ImportError as e:
     st.error(f"Error cargando módulos de la suite: {e}")
 
@@ -45,7 +46,8 @@ ui_texts = {
             "Grupos Funcionales", 
             "Determinación de Estereoquímica", 
             "Estereoquímica Interactiva (Drag & Drop)",
-            "Comparación de Moléculas"
+            "Comparación de Moléculas",
+            "Editor Molecular (Canvas)"
         ]
     },
     "en": {
@@ -56,7 +58,8 @@ ui_texts = {
             "Functional Groups", 
             "Stereochemistry", 
             "Interactive Stereochem. (Drag & Drop)",
-            "Molecule Comparison"
+            "Molecule Comparison",
+            "Molecular Editor (Canvas)"
         ]
     }
 }
@@ -121,10 +124,12 @@ tool_colors = {
     "Functional": "#f1f8e9",     
     "Determinación": "#fff3e0",  # Light orange
     "Stereochemistry": "#fff3e0",  
-    "Interactiva": "#ede7f6",    # Light purple / lavender for Drag & Drop
+    "Estereoquímica": "#ede7f6",    # Light purple / lavender for Drag & Drop
     "Interactive": "#ede7f6",    
     "Comparación": "#fce4ec",    # Light pink
-    "Comparison": "#fce4ec"      
+    "Comparison": "#fce4ec",      
+    "Editor": "#e0f7fa",  # Cyan suave para el editor
+    "Molecular Editor": "#e0f7fa"
 }   
 
 # --- 5. ROUTING ---
@@ -160,3 +165,5 @@ elif opcion == opciones_en[3] or opcion == opciones_es[3]:
     render_dragdrop_stereo_app(ui_texts)
 elif opcion == opciones_en[4] or opcion == opciones_es[4]:
     render_compare_app(ui_texts)
+elif opcion == opciones_en[5] or opcion == opciones_es[5]:
+    render_editor_app(ui_texts)
