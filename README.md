@@ -31,7 +31,11 @@ All tools share a unified design philosophy: the educator provides compound name
 5. **Stereoisomer Comparison & Analysis (`Compare_for_Moodle.py`)**  
    * Evaluates the stereochemical relationship between a base molecule and either automatically enumerated stereoisomers or a second manually entered compound.
    * Rigorously classifies pairs into four distinct categories: Enantiomers, Diastereomers, Identical compounds (including meso forms), and Different non-stereoisomeric compounds (exporting as Moodle multiple choice questions).
-
+  
+6. **Interactive Molecular Editor (`Editor_for_Moodle.py`)**  
+   * Allows drawing chemical structures on the canvas, click 'Apply' inside the editor, and instantly get its analysis, IUPAC name, and Moodle export.
+   * Adds Moodle importable questions to the Nomenclature and Stereochemistry (drag & drop) modules.
+  
 ---
 
 ## ✨ Key Features
